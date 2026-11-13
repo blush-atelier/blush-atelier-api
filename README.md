@@ -43,7 +43,7 @@ npm run local:dev
 
 Espera a que `db` aparezca como `healthy` antes de ejecutar la migración.
 Los comandos local:* detectan la IP actual del contenedor en WSL sin modificar .env.
-El seed se puede repetir sin reiniciar stock. `docker compose down` detiene la BD conservando el volumen.
+El seed carga 20 productos reales (MAC, Too Faced, Bloomshell y Atenea) con precios de referencia COP y fotos, además de los 2 ficticios previos; inventario de demostración. Se puede repetir sin reiniciar stock ni precios. [Fuentes](docs/decisions-and-interview-notes.md#catálogo-de-demostración--13112026). `docker compose down` detiene la BD conservando el volumen.
 [Guía local y solución de errores](docs/development.md).
 
 ## Probar con Swagger
@@ -103,9 +103,9 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **107 pruebas unitarias/HTTP y 16 de integración correctas**.
-Cobertura Jest del backend: sentencias **99,10%**, ramas **96,91%**,
-funciones **98,03%** y líneas **99,00%**; umbral obligatorio configurado en 81%.
+Resultado medido: **108 pruebas unitarias/HTTP y 18 de integración correctas**.
+Cobertura Jest del backend: sentencias **99,11%**, ramas **96,91%**,
+funciones **98,09%** y líneas **99,00%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 

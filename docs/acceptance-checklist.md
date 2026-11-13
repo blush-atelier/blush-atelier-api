@@ -11,21 +11,21 @@
 
 ## 2. Product and UI
 
-- [ ] Product name, description, price and stock are visible.
+- [x] Product name, description, price and stock are visible.
 - [ ] "Pay with credit card" opens a modal.
 - [ ] Card form validates required fields and format.
 - [ ] Visa/Mastercard detection is present (bonus).
-- [ ] Delivery form validates required fields.
-- [ ] Summary shows product amount + base fee + delivery fee.
+- [x] Delivery form validates required fields.
+- [x] Summary shows product amount + base fee + delivery fee.
 - [ ] Payment button is in a backdrop-style summary layer/component.
 - [ ] Loading, error, decline, pending and success states are clear.
 - [ ] Final screen shows transaction reference/status.
-- [ ] Return to product page refreshes stock.
-- [ ] Refresh restores safe checkout progress.
-- [ ] No full PAN/CVV or secret appears in Redux persistence/localStorage.
-- [ ] Mobile layout works at iPhone SE reference size without horizontal overflow.
-- [ ] Tablet and desktop layouts are polished.
-- [ ] Images are optimized, sized, lazy-loaded where appropriate, and have fallbacks.
+- [x] Return to product page refreshes stock.
+- [x] Refresh restores safe checkout progress.
+- [x] No full PAN/CVV or secret appears in Redux persistence/localStorage.
+- [x] Mobile layout works at iPhone SE reference size without horizontal overflow.
+- [x] Tablet and desktop layouts are polished.
+- [x] Images are optimized, sized, lazy-loaded where appropriate, and have fallbacks.
 - [ ] Keyboard navigation, labels, focus, and contrast are acceptable.
 
 ## 3. API and business rules
@@ -74,19 +74,19 @@
 
 ## 6. Tests
 
-- [ ] Jest configured and runs in frontend.
+- [x] Jest configured and runs in frontend.
 - [x] Jest configured and runs in backend.
 - [x] Domain unit tests cover invariants and business policies.
 - [x] Use-case tests cover success and expected failures.
 - [x] API/controller tests cover validation and HTTP mapping.
-- [ ] Frontend tests cover form validation, Redux state, loading/error/success.
+- [x] Frontend tests cover form validation, Redux state, loading/error/success.
 - [ ] Payment adapter tests mock provider; no real payment calls.
 - [ ] Duplicate webhook test.
 - [x] Insufficient stock test.
 - [ ] Duplicate payment/idempotency test.
 - [x] Stock concurrency/oversell test.
-- [ ] Refresh/resume test.
-- [ ] Both apps exceed 80% coverage (actual reports saved).
+- [x] Refresh/resume test.
+- [x] Both apps exceed 80% coverage (actual reports saved).
 - [x] README reports exact coverage and test commands.
 
 ## 7. AWS and delivery
@@ -137,7 +137,7 @@
 - [ ] Staging costs evaluated before persistent AWS infrastructure.
 - [ ] Production AWS deployment verified after CI; OIDC scoped to production.
 - [ ] Rollback documented and verified without destructive database rollback.
-- [ ] Frontend/backend money contract preserves exact cent values.
+- [x] Frontend/backend money contract preserves exact cent values.
 - [ ] First remote GitHub Actions run verified and linked in README.
 
 ## Evidence for the products slice
@@ -169,4 +169,33 @@ the payment, frontend, race/oversell or deployed-environment acceptance checks.
 
 See [payment security](payment-security.md), [Swagger walkthrough](checkout-testing.md)
 and measured [verification](verification.md). Stock confirmation/decrement after payment
-is not implemented yet; frontend refresh UX and provider idempotency remain pending.
+is not implemented yet; frontend refresh UX is verified locally; provider idempotency remains pending.
+
+## Evidencia de catálogo ampliado
+
+- [x] Diez productos con UUID/SKU estables: ocho de marcas reales y dos heredados.
+- [x] Precios COP y fuentes de imágenes registrados en notas; inventario ficticio.
+- [x] Seed parametrizado conserva precio, stock y reservas al repetirse, comprobado en PostgreSQL.
+- [x] 108 pruebas unitarias/HTTP y 17 de integración correctas; cobertura actual en README.
+
+## Evidencia de categorías ampliadas
+
+- [x] Seed local de 22 productos sin sobrescribir stock o precios existentes.
+- [x] Bases, correctores, sombras y accesorios: tres registros nuevos por categoría con foto y precio COP.
+- [x] Test PostgreSQL de prefijos/cantidad, imágenes y precisión de precio.
+- [x] 108 pruebas unitarias/HTTP y 18 de integración correctas en este ciclo.
+
+## Estado consolidado para revisión antes de AWS
+
+Completado localmente: React/Redux, catálogo/detalle responsive, entrega, resumen,
+PENDING con sesión y reserva, recuperación, PostgreSQL/migraciones/seed, hexagonal/ROP
+y Jest >80% en ambos repositorios. Las marcas de UI corresponden a Chrome emulado,
+no a una certificación de todos los navegadores. La pantalla actual muestra una reserva,
+no el resultado de un pago. Frontend: 82 pruebas; backend: 108 + 18 integración.
+
+Pendiente obligatorio: captura/tokenización de tarjeta con Wompi Sandbox, procesar y
+verificar pago desde backend, webhook autenticado/idempotente y actualización definitiva
+del inventario/estado; pruebas de aprobado/rechazado/error y E2E Sandbox. Después,
+validar Lambda/API Gateway, PostgreSQL privado/TLS, S3/CloudFront con rutas SPA,
+HTTPS/CORS/cookies, secretos/OIDC, CI remoto, promoción protegida y URLs públicas.
+La infraestructura puede prepararse en paralelo; la entrega completa requiere el pago.

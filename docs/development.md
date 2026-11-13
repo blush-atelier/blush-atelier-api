@@ -62,7 +62,7 @@ npm run local:dev
 
 - Docker crea la base y conserva sus archivos en el volumen `postgres_data`.
 - La migración crea `products` con restricciones de precio y stock.
-- El seed agrega dos productos ficticios sin sobrescribir los existentes.
+- El seed agrega veinte productos de marcas reales y dos ficticios heredados sin sobrescribir precios o inventario existentes.
 - NestJS sirve la API en el puerto configurado; deja esa terminal abierta.
 - Los comandos local:* descubren el contenedor y usan su IP solo para ese proceso. No editan .env.
 
@@ -86,7 +86,7 @@ No necesitas configurar una herramienta externa: NestJS genera Swagger a partir 
 los controladores y DTO. Abre `http://localhost:3000/docs` en el navegador.
 
 1. Expande **GET /api/products** → **Try it out** → **Execute**.
-   Debe devolver HTTP 200 y dos productos si el seed se acaba de cargar.
+   Debe devolver HTTP 200 y veintidós productos si el seed se acaba de cargar.
 2. Expande **GET /api/products/{id}** y usa el UUID del seed:
    `11111111-1111-4111-8111-111111111111`. Debe responder 200.
 3. Prueba `no-es-un-uuid`: debe responder 400.

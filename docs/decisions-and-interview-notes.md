@@ -65,7 +65,7 @@ feature/* → development → staging → production, siempre por PR y CI aproba
 Development es local. Staging valida el candidato con PostgreSQL efímero en CI y
 pruebas manuales locales mientras se evalúan costos; no implica un despliegue staging
 persistente. Production será la entrega AWS. Todos usarán Wompi Sandbox.
-No hay CD ni infraestructura AWS creados. Antes se requieren presupuesto, costos,
+No se han verificado despliegues ni CD desde este repositorio. Antes se requieren presupuesto, costos,
 red privada de PostgreSQL, OIDC restringido a production y una verificación de salud.
 Ver pipeline.md para promoción, rollback y configuración pendiente en GitHub.
 
@@ -122,3 +122,63 @@ Ver payment-security.md para separar tarjeta, token Wompi y credencial del check
 scripts/local-db.cjs usa Node child_process para consultar solo el ID/IP del contenedor
 y ejecutar un script npm conocido con variables temporales. No evalúa comandos de usuario,
 no imprime credenciales ni modifica .env. Evita depender de una IP fija con Docker Snap/WSL.
+
+## Catálogo de demostración — 13/11/2026
+
+`product-catalog.ts` define datos deterministas para el seed: veinte productos de cuatro marcas y dos productos ficticios heredados. UUID y SKU son estables; stock inicial es ficticio (12/18/20 según producto). El precio es una fotografía de una consulta, no una tarifa en tiempo real ni una oferta comercial. Se conserva como string de centavos sin operaciones de coma flotante. No se añadieron columnas/migraciones: `image_url` ya existía, por lo que el ERD no cambia.
+
+| Marca      | Producto / tono                                | Precio de referencia COP | Fuente                                                                                    |
+| ---------- | ---------------------------------------------- | -----------------------: | ----------------------------------------------------------------------------------------- |
+| MAC        | MACximal Silky Matte / Ruby Woo                |                  115.000 | [Blush-Bar](https://www.blush-bar.com/labial-macximal-silky-matte-lipstick/p)             |
+| MAC        | MACximal Sleek Satin / Brick-o-la              |                  115.000 | [Blush-Bar](https://www.blush-bar.com/labial-macximal-sleek-satin-lipstick/p)             |
+| Too Faced  | Lip Injection Lip Gloss / Stars are Aligned    |                  127.000 | [Blush-Bar](https://www.blush-bar.com/brillo-de-labios-lip-injection-lip-gloss/p)         |
+| Too Faced  | Lip Injection Extreme Lip Shaper / Hot & Spicy |                  113.000 | [Blush-Bar](https://www.blush-bar.com/lip-injection-extreme-lip-shaper/p)                 |
+| Atenea     | Click Lipstick Sublime / Melon                 |                   28.000 | [Atenea](https://ateneaprofesional.com/products/click-lipstick-sublime)                   |
+| Atenea     | Rubor en barra Collection / Pinkchai           |                   44.000 | [Atenea](https://ateneaprofesional.com/products/rubor-en-barra-cremoso-atenea-collection) |
+| Bloomshell | Bloom Blushy / Sol de Tarde                    |                   25.000 | [Bloomshell](https://tienda.bloomshell.co/product/bloom-blushy-sol-de-tarde/)             |
+| Bloomshell | Bloom Touch / Love                             |                   20.000 | [Bloomshell](https://tienda.bloomshell.co/product/bloom-touch-love/)                      |
+
+Los precios y fotos MAC/Too Faced se verificaron también con el catálogo público VTEX de Blush-Bar (`/api/catalog_system/pub/products/search?ft=macximal` y `?ft=lip%20injection`); se prefirió el valor actual de cada SKU frente al precio indexado por buscadores. Atenea se comprobó con las variantes del JSON público Shopify `.js`. Bloomshell publica COP en cada ficha. Las referencias se consultaron el 13/11/2026; pueden cambiar.
+
+Fotografías de producto: CDNs de esas fichas; Sol de Tarde usa [CocoPink, variante 3 Sol de Tarde](https://cocopinkstore.com/products/bloom-blushy-bloomshell), porque la ficha Bloomshell mostraba Susurro en su imagen. La API entrega la URL original; el frontend conserva versiones locales de 480/960 px en `public/images/catalog` y un mapa por SKU para servirlas sin dependencia de hotlinking. Son fotografías ajenas para la demo; no implican afiliación ni licencia comercial de las marcas.
+
+El INSERT está parametrizado e incluye `image_url`. Repetir `local:seed` solo agrega ausentes (`ON CONFLICT DO NOTHING`): no reinicia precio, stock ni reservas, tampoco elimina los productos usados anteriormente. Durante la preparación se corrigió exclusivamente la URL de imagen del nuevo producto Sol de Tarde local, sin modificar sus importes o existencias. Las fuentes son metadatos del seed, no se devuelven datos privados ni se consulta a esas tiendas al hacer checkout.
+
+Prueba de integración: carga diez registros, verifica foto/precio/stock del MAC, modifica precio y reserva en la base desechable y confirma que repetir seed los preserva. Pregunta de entrevista: ¿por qué no hacer upsert de todos los campos? Porque reiniciaría inventario o cambiaría referencias existentes al volver a ejecutar una tarea de desarrollo. Un cambio deliberado de precios requiere una operación explícita.
+
+## Ampliación: bases, correctores, sombras y accesorios — 13/11/2026
+
+Doce productos adicionales, tres por categoría, para un total de 22. Se mantienen
+centavos string y stock inicial ficticio. El seed sigue usando una sola inserción
+parametrizada y ON CONFLICT DO NOTHING, sin sobrescribir productos anteriores.
+Las URLs y fecha de consulta se conservan junto a los datos. El modelo ya admite
+estos productos: no se añadieron columnas ni endpoints; ERD sin cambios.
+
+| Producto / variante                         | Precio de referencia COP | Fuente                                                                                                      |
+| ------------------------------------------- | -----------------------: | ----------------------------------------------------------------------------------------------------------- |
+| Studio Fix Fluid · NC15                     |                  220.000 | [Ficha](https://www.blush-bar.com/base-liquida-studio-fix-fluid-spf-15-24hr-matte-foundation-oil-control/p) |
+| Born This Way Foundation · Golden Beige     |                  222.000 | [Ficha](https://www.blush-bar.com/base-liquida-born-this-way-foundation-too-faced/p)                        |
+| Studio Fix 36HR · NC15                      |                  165.000 | [Ficha](https://www.blush-bar.com/corrector-sf-36hr-smth-angls-c/p)                                         |
+| Born This Way Ethereal Light · Honey Graham |                  154.000 | [Ficha](https://www.blush-bar.com/corrector-born-this-way-etheral-light-concealer/p)                        |
+| Base líquida 1st Scene · Light 30 ml        |                   58.000 | [Ficha](https://ateneaprofesional.com/products/mini-base-liquida-1st-scene)                                 |
+| Corrector líquido 1st Scene · Cutcrease     |                   49.000 | [Ficha](https://ateneaprofesional.com/products/corrector-liquido-1st-scene)                                 |
+| Paleta de sombras Rose Sublime              |                   56.000 | [Ficha](https://ateneaprofesional.com/products/paleta-de-sombras-12-tonos-sublime)                          |
+| Paleta multiusos Moccalush                  |                  150.000 | [Ficha](https://ateneaprofesional.com/products/paleta-de-sombras-multiusos-moccalush)                       |
+| Sombra cremosa individual · Tropicalb       |                   24.000 | [Ficha](https://ateneaprofesional.com/products/sombra-cremosa-individual)                                   |
+| Encrespador de pestañas · Golden Rose       |                   11.000 | [Ficha](https://ateneaprofesional.com/products/encrespador-atenea)                                          |
+| Brocha dúo para base y crema                |                   56.000 | [Ficha](https://ateneaprofesional.com/products/brocha-duo-para-base)                                        |
+| Kit de brochas Pink Travel ×6               |                   79.800 | [Ficha](https://ateneaprofesional.com/products/kit-de-brochas-pink-travel-x6)                               |
+
+MAC/Too Faced: valores por SKU de los catálogos VTEX públicos `?ft=studio%20fix` y
+`?ft=born%20this%20way`; Atenea: precio decimal COP y foto de variante del catálogo
+Shopify público products.json, convertidos fuera de JavaScript a centavos exactos.
+Las imágenes se optimizan en el frontend, sin búsquedas externas durante el checkout.
+
+La API GET /api/products continúa entregando el listado completo. La UI filtra,
+ordena y pagina ocho productos por vista. Para un catálogo mayor, diseñar filtros,
+orden estable, total y paginación del servidor mediante un contrato explícito; no
+cambiar silenciosamente la forma JSON actual que consume el frontend.
+
+La integración comprueba exactamente tres SKU por prefijo nuevo y precio de la base
+Atenea 1st Scene de 58.000 COP (`5800000` centavos). El flujo de checkout acepta los
+mismos UUID y conserva todas las reglas de reserva existentes.

@@ -2,7 +2,7 @@
 
 Verificado el 13 de noviembre de 2026 en WSL Ubuntu, Node 22.23.3 y PostgreSQL 17.12
 (Docker). Alcance: productos, cliente invitado, entrega, cotización y reserva de stock.
-El frontend y los pagos Wompi no están implementados/verificados por esta evidencia.
+El frontend tiene evidencia propia en su repositorio; aquí se verifica el backend. Los pagos Wompi siguen pendientes.
 
 ## Comandos y resultados
 
@@ -12,8 +12,8 @@ El frontend y los pagos Wompi no están implementados/verificados por esta evide
 | npm run format:check     | Correcto                                                  |
 | npm run lint             | Correcto                                                  |
 | npm run typecheck        | Correcto                                                  |
-| npm run test:cov         | 12 suites y 107 pruebas unitarias/HTTP correctas          |
-| npm run test:integration | 2 suites y 16 pruebas correctas sobre PostgreSQL real     |
+| npm run test:cov         | 12 suites y 108 pruebas unitarias/HTTP correctas          |
+| npm run test:integration | 2 suites y 18 pruebas correctas sobre PostgreSQL real     |
 | npm run build            | Correcto; genera dist/                                    |
 | npm run local:migrate    | Nueva migración aplicada conservando productos existentes |
 | npm run local:dev        | Arranque correcto; rutas nuevas registradas               |
@@ -26,9 +26,9 @@ terminar. Las migraciones y tablas de la base de trabajo no se revirtieron.
 
 | Métrica    | Cobertura |
 | ---------- | --------- |
-| Sentencias | 99.10%    |
+| Sentencias | 99.11%    |
 | Ramas      | 96.91%    |
-| Funciones  | 98.03%    |
+| Funciones  | 98.09%    |
 | Líneas     | 99.00%    |
 
 Jest incluye src completo y exige 81% global en las cuatro métricas. Reportes locales:
@@ -82,3 +82,27 @@ npm ci reporta 19 avisos de auditoría: 7 bajos y 12 moderados; ninguno alto o c
 Persisten en las cadenas de Jest/deepmerge y TypeORM/ESLint/glob/minimatch. No se aplicó
 --force ni se afirma que no existan vulnerabilidades. Deben revisarse actualizaciones
 compatibles antes de entrega. Los resultados de cobertura no certifican seguridad PCI.
+
+## Ampliación de catálogo y UI — 13/11/2026
+
+Se ejecutó `POSTGRES_SSL=false npm run local:seed` con NODE_ENV=development y la IP
+obtenida del contenedor Docker local: ahora hay diez productos (ocho de marcas reales).
+Los importes e imágenes tienen procedencia en las notas de entrevista; stock ficticio.
+No se borraron ni reiniciaron los productos o reservas de la base de trabajo.
+
+Se volvieron a ejecutar las 108 pruebas unitarias/HTTP y 17 de integración, estas últimas
+en la base local separada con sufijo `_test`. La base desechable se conservó; sus tablas
+se modificaron/revirtieron solo dentro de esa base. La reserva real realizada desde la UI
+se hizo en la BD de desarrollo y aparta una unidad MAC durante 15 minutos, sin pago.
+El frontend reportó 70 pruebas, 97.28% líneas y 96.36% ramas; ver su README para todas las métricas.
+AWS no se modificó ni se verificó desde este cambio.
+
+## Categorías y paginación — 13/11/2026
+
+Se agregaron 12 productos reales a la BD de desarrollo, preservando los 10 anteriores:
+22 registros en total. Tres bases, tres correctores, tres sombras y tres accesorios;
+URLs de fuente y fecha de consulta en product-catalog.ts. No cambian migraciones/ERD.
+Jest: 108 pruebas unitarias/HTTP y 18 de integración correctas en la base local _test.
+El frontend reporta 82 pruebas; 97.56% líneas, 96.93% ramas. La revisión Chrome comprobó
+22 IDs distintos en páginas 8/8/6, filtros antes de paginar, recuperación y viewports
+320–1920 px. Solo se preparó una cotización real adicional; no se creó otra reserva.
