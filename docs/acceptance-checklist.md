@@ -1,8 +1,10 @@
 # Acceptance checklist — tick off with evidence
 
+Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md). Los apartados de evidencia de abajo registran hitos históricos; no prueban pagos Wompi ni AWS. Medición actual: API 111 + 23 integración, WEB 99 pruebas; ambos >80% en las cuatro métricas.
+
 ## 1. Repository and setup
 
-- [ ] Neutral public repository name; does not contain the company name.
+- [x] Neutral public repository name; visibility confirmed through GitHub metadata on 13/11/2026.
 - [x] Independent backend repository `blush-atelier-api`; frontend in `blush-atelier-web` (see README).
 - [x] `.gitignore` excludes `.env`, build output, node_modules, coverage, local DB files.
 - [x] `.env.example` lists variable names only; no real values.
@@ -37,7 +39,7 @@
 - [ ] Payment endpoint initiates Sandbox flow.
 - [ ] Transaction status endpoint returns backend-verified status.
 - [ ] Webhook endpoint validates authenticity and handles duplicate events idempotently.
-- [x] Stock is reserved/updated safely; insufficient stock is rejected.
+- [x] Stock reservation is atomic; insufficient stock is rejected. Final stock confirmation after payment remains pending.
 - [ ] Duplicate requests do not double-charge or double-decrement stock.
 - [ ] Provider decline/failure leaves consistent transaction and stock state.
 - [x] Backend calculates price, fees, delivery fee and stock; frontend values are not trusted.
@@ -191,7 +193,7 @@ Completado localmente: React/Redux, catálogo/detalle responsive, entrega, resum
 PENDING con sesión y reserva, recuperación, PostgreSQL/migraciones/seed, hexagonal/ROP
 y Jest >80% en ambos repositorios. Las marcas de UI corresponden a Chrome emulado,
 no a una certificación de todos los navegadores. La pantalla actual muestra una reserva,
-no el resultado de un pago. Frontend: 94 pruebas; backend: 111 + 23 integración.
+no el resultado de un pago. Frontend: 99 pruebas; backend: 111 + 23 integración.
 
 Pendiente obligatorio: captura/tokenización de tarjeta con Wompi Sandbox, procesar y
 verificar pago desde backend, webhook autenticado/idempotente y actualización definitiva

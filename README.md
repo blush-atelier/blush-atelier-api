@@ -129,3 +129,5 @@ La API actual rechaza campos de tarjeta y no los refleja en errores. El futuro f
 enviará la tarjeta directamente a Wompi y el backend trabajará solo con su token.
 La cookie del checkout es HttpOnly; precio, stock y estado dependen del servidor.
 [Explicación de tarjeta, token y sesión](docs/payment-security.md).
+
+[Auditoría de entrega y plan mínimo](docs/delivery-audit.md).
