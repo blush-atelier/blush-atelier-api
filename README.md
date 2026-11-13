@@ -2,7 +2,7 @@
 
 Backend de la prueba Full Stack: NestJS, TypeScript, PostgreSQL y TypeORM.
 Frontend independiente: [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web).
-Incluye productos, cliente, entrega, cotización y transacción PENDING con reserva de stock.
+Incluye catálogo, carrito de varios productos, cliente, entrega, cotización y una transacción PENDING con reserva atómica de stock.
 El procesamiento de pagos y el despliegue siguen pendientes.
 Wompi se usará exclusivamente en Sandbox en todos los ambientes.
 
@@ -82,7 +82,7 @@ Organización por módulo: `domain`, `application` e `infrastructure`.
 Dominio y aplicación no dependen de NestJS ni TypeORM; el controlador traduce Result a HTTP.
 La reserva y la transacción se guardan juntas; una clave repetida no duplica stock.
 Las reservas sin pago vencen en 15 minutos; su liberación se evalúa al cotizar, crear
-o consultar transacciones del producto.
+o consultar transacciones. Cada pedido conserva sus líneas en `transaction_items`; las tarifas se aplican una sola vez.
 [Decisiones y notas para entrevista](docs/decisions-and-interview-notes.md).
 
 ![Modelo PostgreSQL implementado: productos, clientes, entregas y transacciones](docs/erd.svg)
@@ -103,9 +103,9 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **108 pruebas unitarias/HTTP y 18 de integración correctas**.
-Cobertura Jest del backend: sentencias **99,11%**, ramas **96,91%**,
-funciones **98,09%** y líneas **99,00%**; umbral obligatorio configurado en 81%.
+Resultado medido: **111 pruebas unitarias/HTTP y 23 de integración correctas**.
+Cobertura Jest del backend: sentencias **97,57%**, ramas **96,41%**,
+funciones **95,68%** y líneas **97,30%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 

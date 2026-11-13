@@ -99,3 +99,9 @@ This document separates explicit requirements from optional improvements. The as
 - Wompi Sandbox in every environment.
 - Evaluate costs before creating AWS resources; prioritize one functional delivery infrastructure.
 - Monetary amounts: BIGINT cents in PostgreSQL, bigint for arithmetic, decimal strings in JSON.
+
+## Ampliación solicitada: e-commerce
+
+El carrito admite varios productos distintos con cantidades independientes. Una sola
+transacción PENDING reserva el conjunto atómicamente y aplica tarifa base/envío una vez.
+Es una ampliación aprobada por la usuaria; el flujo de un solo producto sigue funcionando.

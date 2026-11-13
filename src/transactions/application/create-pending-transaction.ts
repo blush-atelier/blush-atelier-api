@@ -4,7 +4,7 @@ import type {
   StoredTransaction,
 } from '../domain/checkout-unit-of-work.port';
 import { transactionView } from './transaction-view';
-import { calculateQuote, type CheckoutFees } from '../domain/pricing';
+import { calculateBasket, type CheckoutFees } from '../domain/pricing';
 import type {
   CheckoutRuntime,
   CheckoutResult,
@@ -26,10 +26,26 @@ export class CreatePendingTransaction {
       !/^(0|[1-9][0-9]{0,18})$/.test(input.expectedTotalMinor)
     )
       return Promise.resolve({ ok: false, error: 'InvalidCheckout' });
+    const items = input.items ?? [
+      { productId: input.productId, quantity: input.quantity },
+    ];
+    if (
+      !items.length ||
+      items.length > 50 ||
+      new Set(items.map((i) => i.productId)).size !== items.length ||
+      items[0].productId !== input.productId ||
+      items[0].quantity !== input.quantity
+    )
+      return Promise.resolve({ ok: false, error: 'InvalidCheckout' });
     const hash = this.runtime.hash(
       JSON.stringify({
-        productId: input.productId,
-        quantity: input.quantity,
+        ...(items.length === 1
+          ? { productId: input.productId, quantity: input.quantity }
+          : {
+              items: [...items].sort((a, b) =>
+                a.productId.localeCompare(b.productId),
+              ),
+            }),
         deliveryId: input.deliveryId,
         expectedTotalMinor: input.expectedTotalMinor,
       }),
@@ -43,19 +59,29 @@ export class CreatePendingTransaction {
           ? { ok: true, value: transactionView(existing) }
           : { ok: false, error: 'IdempotencyConflict' };
       const now = this.runtime.now();
-      const product = await currentProduct(store, input.productId, now);
-      if (!product) return { ok: false, error: 'ProductNotFound' };
+      const products = [];
+      for (const item of items) {
+        const product = await currentProduct(store, item.productId, now);
+        if (!product) return { ok: false, error: 'ProductNotFound' };
+        products.push(product);
+      }
       if (!(await store.lockDelivery(input.deliveryId, customerId)))
         return { ok: false, error: 'DeliveryNotFound' };
       if (await store.deliveryUsed(input.deliveryId))
         return { ok: false, error: 'DeliveryAlreadyUsed' };
-      const quote = calculateQuote(product, input.quantity, this.fees);
+      const quote = calculateBasket(
+        products,
+        items.map((i) => i.quantity),
+        this.fees,
+      );
       if (!quote.ok) return quote;
       // expectedTotal es consentimiento del cliente, nunca la fuente del precio cobrado.
       if (quote.value.totalMinor !== input.expectedTotalMinor)
         return { ok: false, error: 'QuoteChanged' };
-      if (!(await store.reserve(input.productId, input.quantity)))
-        return { ok: false, error: 'InsufficientStock' };
+      for (const item of items) {
+        if (!(await store.reserve(item.productId, item.quantity)))
+          return { ok: false, error: 'InsufficientStock' };
+      }
       const id = this.runtime.id();
       const transaction: StoredTransaction = {
         ...quote.value,

@@ -21,6 +21,9 @@ beforeAll(async () => {
   source = new DataSource(databaseOptions());
   await source.initialize();
   await source.runMigrations();
+  await source.query(
+    'TRUNCATE transaction_items, transactions, deliveries, customers, products',
+  );
   await seedProducts(source);
   const module = await Test.createTestingModule({
     imports: [TypeOrmModule.forRoot(databaseOptions()), ProductsModule],
@@ -97,6 +100,7 @@ it('responde 404 para un UUID inexistente', async () => {
     .expect(404);
 });
 it('rollback y reaplicacion de migracion funcionan en base desechable', async () => {
+  await source.undoLastMigration();
   await source.undoLastMigration();
   await source.undoLastMigration();
   await expect(source.query('SELECT * FROM products')).rejects.toThrow();

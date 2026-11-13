@@ -1,5 +1,7 @@
 erDiagram
-    PRODUCTS ||--o{ TRANSACTIONS : contiene
+    PRODUCTS ||--o{ TRANSACTIONS : primera_linea_compatible
+    PRODUCTS ||--o{ TRANSACTION_ITEMS : incluido
+    TRANSACTIONS ||--|{ TRANSACTION_ITEMS : contiene
     CUSTOMERS ||--o{ TRANSACTIONS : realiza
     CUSTOMERS ||--o{ DELIVERIES : recibe
     DELIVERIES ||--o| TRANSACTIONS : corresponde
@@ -60,4 +62,12 @@ erDiagram
         timestamptz reservation_expires_at
         timestamptz created_at
         timestamptz updated_at
+    }
+    TRANSACTION_ITEMS {
+        uuid transaction_id PK,FK
+        uuid product_id PK,FK
+        int quantity
+        bigint unit_price_minor
+        bigint product_amount_minor
+        timestamptz created_at
     }

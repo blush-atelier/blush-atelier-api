@@ -132,3 +132,26 @@ por sí solo no garantiza que un navegador acepte cookies entre sitios distintos
 No se ha desplegado ni verificado esa configuración todavía.
 
 Lee [payment-security.md](payment-security.md) antes de implementar el formulario de tarjeta.
+
+## Carrito de varios productos
+
+Los mismos endpoints de cotización y PENDING admiten `items` (1–50 UUID distintos).
+Conserva productId y quantity de la primera línea para compatibilidad:
+
+```json
+{
+  "productId": "11111111-1111-4111-8111-111111111111",
+  "quantity": 1,
+  "items": [
+    { "productId": "11111111-1111-4111-8111-111111111111", "quantity": 1 },
+    { "productId": "22222222-2222-4222-8222-222222222222", "quantity": 2 }
+  ],
+  "deliveryId": "DELIVERY_UUID"
+}
+```
+
+Para crear la reserva añade expectedTotalMinor de la cotización y la cabecera
+Idempotency-Key. No envíes precios por línea: se calculan en servidor. La respuesta
+múltiple incluye items con precio unitario y subtotal de cada línea; productAmountMinor
+es el agregado y las tarifas se cobran una vez. Cualquier falta de stock revierte
+el pedido completo. Un timeout se reintenta con la misma clave y las mismas líneas.

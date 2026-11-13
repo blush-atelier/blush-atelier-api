@@ -5,6 +5,7 @@ export const CHECKOUT_UNIT_OF_WORK = Symbol('CHECKOUT_UNIT_OF_WORK');
 export interface QuoteInput {
   productId: string;
   quantity: number;
+  items?: { productId: string; quantity: number }[];
   deliveryId: string;
 }
 export interface PendingInput extends QuoteInput {

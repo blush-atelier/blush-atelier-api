@@ -182,3 +182,24 @@ cambiar silenciosamente la forma JSON actual que consume el frontend.
 La integración comprueba exactamente tres SKU por prefijo nuevo y precio de la base
 Atenea 1st Scene de 58.000 COP (`5800000` centavos). El flujo de checkout acepta los
 mismos UUID y conserva todas las reglas de reserva existentes.
+
+## Carrito completo: productos y reserva atómica
+
+QuoteCheckout y CreatePendingTransaction aceptan líneas. calculateBasket calcula cada
+subtotal con bigint, suma una sola tarifa base y un envío y controla el límite BIGINT.
+TypeOrmCheckoutUnitOfWork persiste la cabecera y transaction_items dentro de la misma
+transacción; un Result fallido revierte todas las reservas, incluso después de actualizar
+una línea. El hash ordena las líneas para reconocer el mismo pedido aunque cambie su
+orden. Para una sola línea conserva el hash anterior y permite recuperar solicitudes
+iniciadas antes de esta actualización.
+
+La expiración libera todas las líneas del pedido una vez. Un advisory lock global de
+PostgreSQL coordina procesos y evita interbloqueos con carritos superpuestos. Es una
+solución sencilla para el volumen de la prueba, con menor concurrencia; al escalar
+revisaría bloqueos ordenados y reconciliación. No usar este lock durante Wompi.
+
+Preguntas: ¿por qué una sola transacción por carrito? Para reservar todo o nada y no
+cobrar tarifas por producto. ¿Por qué guardar precio por línea? Para conservar el
+importe acordado aunque cambie el catálogo. ¿Por qué no borrar las columnas anteriores?
+Para migrar sin perder recuperación/idempotencia; son la primera línea compatible.
+Los pagos siguen pendientes y no se marcan APPROVED desde el navegador.

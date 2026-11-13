@@ -3,7 +3,7 @@ import type {
   QuoteInput,
   CheckoutStore,
 } from '../domain/checkout-unit-of-work.port';
-import { calculateQuote, type CheckoutFees } from '../domain/pricing';
+import { calculateBasket, type CheckoutFees } from '../domain/pricing';
 import type { CheckoutRuntime } from '../../shared/domain/checkout';
 export async function currentProduct(
   store: CheckoutStore,
@@ -24,15 +24,34 @@ export class QuoteCheckout {
   ) {}
   execute(customerId: string, input: QuoteInput) {
     return this.unit.run(async (store) => {
-      const product = await currentProduct(
-        store,
-        input.productId,
-        this.runtime.now(),
-      );
-      if (!product) return { ok: false, error: 'ProductNotFound' };
+      const items = input.items ?? [
+        { productId: input.productId, quantity: input.quantity },
+      ];
+      if (
+        !items.length ||
+        items.length > 50 ||
+        new Set(items.map((i) => i.productId)).size !== items.length ||
+        items[0].productId !== input.productId ||
+        items[0].quantity !== input.quantity
+      )
+        return { ok: false, error: 'InvalidCheckout' };
+      const products = [];
+      for (const item of items) {
+        const product = await currentProduct(
+          store,
+          item.productId,
+          this.runtime.now(),
+        );
+        if (!product) return { ok: false, error: 'ProductNotFound' };
+        products.push(product);
+      }
       if (!(await store.lockDelivery(input.deliveryId, customerId)))
         return { ok: false, error: 'DeliveryNotFound' };
-      return calculateQuote(product, input.quantity, this.fees);
+      return calculateBasket(
+        products,
+        items.map((i) => i.quantity),
+        this.fees,
+      );
     });
   }
 }

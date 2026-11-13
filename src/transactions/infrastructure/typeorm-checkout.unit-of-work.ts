@@ -32,7 +32,17 @@ class PostgresCheckoutStore implements CheckoutStore {
       .getMany();
     const row = rows[0];
     if (!row) return null;
+    const items: {
+      productId: string;
+      quantity: number;
+      unitPriceMinor: string;
+      productAmountMinor: string;
+    }[] = await this.manager.query(
+      'SELECT product_id AS "productId",quantity,unit_price_minor AS "unitPriceMinor",product_amount_minor AS "productAmountMinor" FROM transaction_items WHERE transaction_id=$1 ORDER BY product_id',
+      [row.id],
+    );
     return {
+      ...(items.length > 1 ? { items } : {}),
       id: row.id,
       reference: row.reference,
       customerId: row.customerId,
@@ -88,16 +98,21 @@ class PostgresCheckoutStore implements CheckoutStore {
     return product.value;
   }
   async releaseExpiredUnstarted(productId: string, now: Date): Promise<void> {
-    // El producto ya está bloqueado. Cambiar estado y liberar sus unidades es una sola operación SQL.
+    // El bloqueo global de checkout permite liberar todas las líneas sin ciclos de bloqueos.
     await this.manager.query(
       `WITH released AS (
-   UPDATE transactions SET status='EXPIRED', reservation_status='RELEASED', updated_at=$2
-   WHERE product_id=$1 AND status='PENDING' AND reservation_status='ACTIVE'
-     AND payment_started_at IS NULL AND reservation_expires_at <= $2 RETURNING quantity
-  ) UPDATE products SET stock_reserved=stock_reserved-COALESCE((SELECT sum(quantity) FROM released),0)::integer, updated_at=$2 WHERE id=$1`,
+        UPDATE transactions SET status='EXPIRED',reservation_status='RELEASED',updated_at=$2
+        WHERE status='PENDING' AND reservation_status='ACTIVE' AND payment_started_at IS NULL
+          AND reservation_expires_at <= $2 AND $1::uuid IS NOT NULL RETURNING id
+      ), quantities AS (
+        SELECT i.product_id,sum(i.quantity)::integer AS quantity FROM transaction_items i
+        JOIN released r ON r.id=i.transaction_id GROUP BY i.product_id
+      ) UPDATE products p SET stock_reserved=p.stock_reserved-q.quantity,updated_at=$2
+        FROM quantities q WHERE p.id=q.product_id`,
       [productId, now],
     );
   }
+
   async lockDelivery(id: string, customerId: string): Promise<boolean> {
     const rows: { id: string }[] = await this.manager.query(
       'SELECT id FROM deliveries WHERE id=$1 AND customer_id=$2 FOR UPDATE',
@@ -124,6 +139,25 @@ class PostgresCheckoutStore implements CheckoutStore {
       ...transaction,
       reservationExpiresAt: new Date(transaction.reservationExpiresAt),
     });
+    const items = transaction.items ?? [
+      {
+        productId: transaction.productId,
+        quantity: transaction.quantity,
+        unitPriceMinor: transaction.unitPriceMinor,
+        productAmountMinor: transaction.productAmountMinor,
+      },
+    ];
+    for (const item of items)
+      await this.manager.query(
+        'INSERT INTO transaction_items(transaction_id,product_id,quantity,unit_price_minor,product_amount_minor) VALUES($1,$2,$3,$4,$5)',
+        [
+          transaction.id,
+          item.productId,
+          item.quantity,
+          item.unitPriceMinor,
+          item.productAmountMinor,
+        ],
+      );
   }
 }
 @Injectable()
@@ -135,6 +169,8 @@ export class TypeOrmCheckoutUnitOfWork implements CheckoutUnitOfWork {
   ): Promise<CheckoutResult<T>> {
     try {
       return await this.source.transaction(async (manager) => {
+        // Serializamos la reserva y expiración de pedidos completos. Es simple y suficiente para esta escala.
+        await manager.query('SELECT pg_advisory_xact_lock(731046285)');
         const result = await work(new PostgresCheckoutStore(manager));
         // TypeORM necesita una excepción interna para revertir también un Result fallido.
         if (!result.ok) throw new RollbackResult(result);

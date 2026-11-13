@@ -191,7 +191,7 @@ Completado localmente: React/Redux, catálogo/detalle responsive, entrega, resum
 PENDING con sesión y reserva, recuperación, PostgreSQL/migraciones/seed, hexagonal/ROP
 y Jest >80% en ambos repositorios. Las marcas de UI corresponden a Chrome emulado,
 no a una certificación de todos los navegadores. La pantalla actual muestra una reserva,
-no el resultado de un pago. Frontend: 82 pruebas; backend: 108 + 18 integración.
+no el resultado de un pago. Frontend: 94 pruebas; backend: 111 + 23 integración.
 
 Pendiente obligatorio: captura/tokenización de tarjeta con Wompi Sandbox, procesar y
 verificar pago desde backend, webhook autenticado/idempotente y actualización definitiva
@@ -199,3 +199,11 @@ del inventario/estado; pruebas de aprobado/rechazado/error y E2E Sandbox. Despu�
 validar Lambda/API Gateway, PostgreSQL privado/TLS, S3/CloudFront con rutas SPA,
 HTTPS/CORS/cookies, secretos/OIDC, CI remoto, promoción protegida y URLs públicas.
 La infraestructura puede prepararse en paralelo; la entrega completa requiere el pago.
+
+## Carrito de varios productos
+
+- [x] Cotización y PENDING de varias líneas con precios de servidor y tarifas una vez.
+- [x] Reserva atómica y expiración de todas las líneas sin duplicados.
+- [x] Competencia con orden inverso de productos sin sobreventa, probada en PostgreSQL.
+- [x] Migración preserva pedido anterior y su reintento idempotente.
+- [x] Evidencia actual: 111 pruebas unitarias/HTTP y 23 de integración; cobertura en README.

@@ -6,6 +6,7 @@ export function transactionView(transaction: StoredTransaction) {
     status: transaction.status,
     reservationStatus: transaction.reservationStatus,
     reservationExpiresAt: transaction.reservationExpiresAt,
+    ...(transaction.items ? { items: transaction.items } : {}),
     productId: transaction.productId,
     quantity: transaction.quantity,
     currency: transaction.currency,

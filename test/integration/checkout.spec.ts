@@ -28,7 +28,12 @@ beforeAll(async () => {
   await app.init();
 }, 30000);
 beforeEach(async () => {
-  await source.query('TRUNCATE transactions, deliveries, customers');
+  await source.query(
+    'TRUNCATE transaction_items, transactions, deliveries, customers',
+  );
+  await source.query(
+    "UPDATE products SET stock_on_hand=15,stock_reserved=0,price_minor=5990000 WHERE id='22222222-2222-4222-8222-222222222222'",
+  );
   await source.query(
     'UPDATE products SET stock_on_hand=20, stock_reserved=0, price_minor=8990000 WHERE id=$1',
     [productId],
@@ -247,4 +252,216 @@ it('limita ráfagas de consultas en el módulo real', async () => {
     ),
   );
   expect(responses.some((response) => response.status === 429)).toBe(true);
+});
+
+const secondId = '22222222-2222-4222-8222-222222222222';
+it('reserva todo el carrito una vez, conserva sus líneas y cobra las tarifas una vez', async () => {
+  const { agent } = await session();
+  const deliveryId = await delivery(agent);
+  const items = [
+    { productId, quantity: 2 },
+    { productId: secondId, quantity: 3 },
+  ];
+  const input = { ...items[0], items, deliveryId };
+  const quote = await agent
+    .post('/api/checkout/quote')
+    .set('X-Checkout-Request', '1')
+    .send(input)
+    .expect(200);
+  expect(quote.body).toMatchObject({
+    productAmountMinor: '35950000',
+    totalMinor: '37450000',
+    items: expect.arrayContaining([
+      {
+        ...items[1],
+        unitPriceMinor: '5990000',
+        productAmountMinor: '17970000',
+      },
+    ]),
+  });
+  const create = () =>
+    agent
+      .post('/api/transactions')
+      .set('X-Checkout-Request', '1')
+      .set('Idempotency-Key', 'basket-duplicate')
+      .send({ ...input, expectedTotalMinor: quote.body.totalMinor });
+  const responses = await Promise.all([create(), create(), create()]);
+  expect(responses.map((r) => r.status)).toEqual([201, 201, 201]);
+  expect(new Set(responses.map((r) => r.body.id)).size).toBe(1);
+  expect(
+    (
+      await source.query('SELECT count(*)::int AS count FROM transaction_items')
+    )[0].count,
+  ).toBe(2);
+  expect((await stock()).stock_reserved).toBe(2);
+  expect(
+    (
+      await source.query('SELECT stock_reserved FROM products WHERE id=$1', [
+        secondId,
+      ])
+    )[0].stock_reserved,
+  ).toBe(3);
+  const retrieved = await agent
+    .get(`/api/transactions/${responses[0].body.id}`)
+    .expect(200);
+  expect(retrieved.body.items).toHaveLength(2);
+  await expect(source.undoLastMigration()).rejects.toThrow(
+    'Cannot roll back baskets without losing order lines',
+  );
+  await source.query(
+    "UPDATE transactions SET reservation_expires_at=now()-interval '1 minute'",
+  );
+  for (let i = 0; i < 2; i++)
+    await agent.get(`/api/transactions/${responses[0].body.id}`).expect(200);
+  expect(
+    (
+      await source.query(
+        'SELECT stock_reserved FROM products WHERE id=ANY($1::uuid[])',
+        [items.map((i) => i.productId)],
+      )
+    ).map((p: { stock_reserved: number }) => p.stock_reserved),
+  ).toEqual([0, 0]);
+});
+it('no reserva ninguna línea si falta stock y rechaza productos repetidos', async () => {
+  const { agent } = await session();
+  const deliveryId = await delivery(agent);
+  const items = [
+    { productId, quantity: 1 },
+    { productId: secondId, quantity: 2147483647 },
+  ];
+  const input = { ...items[0], items, deliveryId, expectedTotalMinor: '1' };
+  const response = await agent
+    .post('/api/transactions')
+    .set('X-Checkout-Request', '1')
+    .set('Idempotency-Key', 'basket-no-stock')
+    .send(input)
+    .expect(409);
+  expect(response.body.code).toBe('InsufficientStock');
+  expect((await stock()).stock_reserved).toBe(0);
+  await agent
+    .post('/api/checkout/quote')
+    .set('X-Checkout-Request', '1')
+    .send({ ...items[0], items: [items[0], items[0]], deliveryId })
+    .expect(400);
+  await agent
+    .post('/api/checkout/quote')
+    .set('X-Checkout-Request', '1')
+    .send({
+      ...items[0],
+      items: [{ ...items[0], cardNumber: 'not-allowed' }],
+      deliveryId,
+    })
+    .expect(400);
+});
+it('carritos en orden inverso compiten sin sobreventa ni interbloqueo', async () => {
+  await source.query(
+    'UPDATE products SET stock_on_hand=1 WHERE id=ANY($1::uuid[])',
+    [[productId, secondId]],
+  );
+  const buyers = await Promise.all([session(), session()]);
+  const responses = await Promise.all(
+    buyers.map(async ({ agent }, index) => {
+      const deliveryId = await delivery(agent);
+      const items = (index ? [secondId, productId] : [productId, secondId]).map(
+        (id) => ({ productId: id, quantity: 1 }),
+      );
+      return agent
+        .post('/api/transactions')
+        .set('X-Checkout-Request', '1')
+        .set('Idempotency-Key', `basket-race-${index}`)
+        .send({
+          ...items[0],
+          items,
+          deliveryId,
+          expectedTotalMinor: '16480000',
+        });
+    }),
+  );
+  expect(responses.map((r) => r.status).sort()).toEqual([201, 409]);
+  expect(
+    (
+      await source.query(
+        'SELECT stock_reserved FROM products WHERE id=ANY($1::uuid[])',
+        [[productId, secondId]],
+      )
+    ).every((p: { stock_reserved: number }) => p.stock_reserved === 1),
+  ).toBe(true);
+  await source.query('UPDATE products SET stock_on_hand=15 WHERE id=$1', [
+    secondId,
+  ]);
+});
+
+it('la migración conserva una transacción anterior, su reserva y su clave', async () => {
+  const { agent } = await session();
+  const deliveryId = await delivery(agent);
+  const created = await pending(agent, deliveryId, 'legacy-migration').expect(
+    201,
+  );
+  await source.undoLastMigration();
+  expect((await stock()).stock_reserved).toBe(1);
+  await source.runMigrations();
+  const lines = await source.query(
+    'SELECT product_id,quantity,unit_price_minor FROM transaction_items WHERE transaction_id=$1',
+    [created.body.id],
+  );
+  expect(lines).toEqual([
+    { product_id: productId, quantity: 1, unit_price_minor: '8990000' },
+  ]);
+  const retry = await pending(agent, deliveryId, 'legacy-migration').expect(
+    201,
+  );
+  expect(retry.body.id).toBe(created.body.id);
+  expect((await stock()).stock_reserved).toBe(1);
+});
+
+it('un fallo al insertar la segunda línea revierte cabecera y stock de todos los productos', async () => {
+  const { agent } = await session();
+  const deliveryId = await delivery(agent);
+  await source.query(
+    `CREATE FUNCTION reject_basket_line_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.product_id='${secondId}'::uuid THEN RAISE EXCEPTION 'test rollback'; END IF; RETURN NEW; END $$`,
+  );
+  await source.query(
+    'CREATE TRIGGER reject_basket_line_test BEFORE INSERT ON transaction_items FOR EACH ROW EXECUTE FUNCTION reject_basket_line_test()',
+  );
+  const log = jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined);
+  try {
+    const items = [
+      { productId, quantity: 1 },
+      { productId: secondId, quantity: 1 },
+    ];
+    const response = await agent
+      .post('/api/transactions')
+      .set('X-Checkout-Request', '1')
+      .set('Idempotency-Key', 'basket-insert-error')
+      .send({ ...items[0], items, deliveryId, expectedTotalMinor: '16480000' })
+      .expect(503);
+    expect(response.body.code).toBe('CheckoutStorageUnavailable');
+    expect(
+      (await source.query('SELECT count(*)::int AS count FROM transactions'))[0]
+        .count,
+    ).toBe(0);
+    expect(
+      (
+        await source.query(
+          'SELECT count(*)::int AS count FROM transaction_items',
+        )
+      )[0].count,
+    ).toBe(0);
+    expect(
+      (
+        await source.query(
+          'SELECT stock_reserved FROM products WHERE id=ANY($1::uuid[])',
+          [[productId, secondId]],
+        )
+      ).every((p: { stock_reserved: number }) => p.stock_reserved === 0),
+    ).toBe(true);
+  } finally {
+    log.mockRestore();
+    await source.query(
+      'DROP TRIGGER reject_basket_line_test ON transaction_items',
+    );
+    await source.query('DROP FUNCTION reject_basket_line_test()');
+  }
 });

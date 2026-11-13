@@ -5,7 +5,14 @@ export interface CheckoutFees {
   baseFeeMinor: bigint;
   deliveryFeeMinor: bigint;
 }
+export interface QuoteItem {
+  productId: string;
+  quantity: number;
+  unitPriceMinor: string;
+  productAmountMinor: string;
+}
 export interface Quote {
+  items?: QuoteItem[];
   productId: string;
   quantity: number;
   currency: 'COP';
@@ -36,6 +43,46 @@ export function calculateQuote(
       quantity,
       currency: 'COP',
       unitPriceMinor: product.data.priceMinor.toString(),
+      productAmountMinor: amount.toString(),
+      baseFeeMinor: fees.baseFeeMinor.toString(),
+      deliveryFeeMinor: fees.deliveryFeeMinor.toString(),
+      totalMinor: total.toString(),
+    },
+  };
+}
+
+// Las tarifas se suman una sola vez por pedido, siempre con aritmética entera.
+export function calculateBasket(
+  products: Product[],
+  quantities: number[],
+  fees: CheckoutFees,
+): CheckoutResult<Quote> {
+  if (
+    !products.length ||
+    products.length > 50 ||
+    new Set(products.map((p) => p.data.id)).size !== products.length
+  )
+    return { ok: false, error: 'InvalidCheckout' };
+  const items: QuoteItem[] = [];
+  for (let i = 0; i < products.length; i++) {
+    const result = calculateQuote(products[i], quantities[i], fees);
+    if (!result.ok) return result;
+    const { productId, quantity, unitPriceMinor, productAmountMinor } =
+      result.value;
+    items.push({ productId, quantity, unitPriceMinor, productAmountMinor });
+  }
+  const amount = items.reduce(
+    (sum, item) => sum + BigInt(item.productAmountMinor),
+    0n,
+  );
+  const total = amount + fees.baseFeeMinor + fees.deliveryFeeMinor;
+  if (total > MAX_MONEY) return { ok: false, error: 'AmountOutOfRange' };
+  return {
+    ok: true,
+    value: {
+      ...items[0],
+      ...(items.length > 1 ? { items } : {}),
+      currency: 'COP',
       productAmountMinor: amount.toString(),
       baseFeeMinor: fees.baseFeeMinor.toString(),
       deliveryFeeMinor: fees.deliveryFeeMinor.toString(),

@@ -1,5 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
+export class QuoteItemResponseDto {
+  @ApiProperty({ format: 'uuid' }) productId!: string;
+  @ApiProperty({ minimum: 1 }) quantity!: number;
+  @ApiProperty({ type: String }) unitPriceMinor!: string;
+  @ApiProperty({ type: String }) productAmountMinor!: string;
+}
 export class QuoteResponseDto {
+  @ApiProperty({
+    type: [QuoteItemResponseDto],
+    required: false,
+    description:
+      'Desglose de pedidos con varios productos; las tarifas pertenecen al pedido.',
+  })
+  items?: QuoteItemResponseDto[];
   @ApiProperty({ format: 'uuid' }) productId!: string;
   @ApiProperty({ minimum: 1 }) quantity!: number;
   @ApiProperty({ enum: ['COP'] }) currency!: string;

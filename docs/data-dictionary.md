@@ -59,14 +59,14 @@ la trazabilidad. created_at/updated_at son TIMESTAMPTZ obligatorios con default 
 Transacciones: status CHECK (PENDING, APPROVED, DECLINED, ERROR, EXPIRED) y
 reservation_status CHECK (ACTIVE, CONFIRMED, RELEASED). Un índice sobre
 (status, reservation_expires_at) permitirá reconciliar pendientes. CHECK de importes:
-`product_amount_minor = unit_price_minor × quantity` y
+En cada línea, `product_amount_minor = unit_price_minor × quantity`; en la cabecera,
 `total_minor = product_amount_minor + base_fee_minor + delivery_fee_minor`.
 Validar antes de superar BIGINT. La coherencia cliente/entrega está garantizada con
 una FK compuesta (delivery_id, customer_id).
 
 ## Relaciones e idempotencia
 
-Un cliente puede tener varias compras; cada compra tiene un producto y una entrega
+Un cliente puede tener varias compras; cada compra tiene varias líneas de producto y una entrega
 única. Una transacción puede registrar varios intentos históricos, pero solo uno
 activo. Los eventos autentificados de un intento se deduplican en la base de datos.
 La clave exacta del evento se decidirá contra la documentación oficial de Wompi.
@@ -89,9 +89,34 @@ permite liberar stock cuando el pago puede haberse aprobado.
 - El mismo Idempotency-Key solo es único dentro de su cliente. El request_hash detecta contenido distinto.
 - UNIQUE(delivery_id) impide asignar una entrega a dos transacciones; tras expirar una compra,
   una compra nueva requiere otra entrega (puede tener la misma dirección).
-- Los bloqueos siguen el orden solicitud → producto → entrega. La reserva usa además UPDATE condicional.
+- Los bloqueos siguen el orden checkout global → solicitud → producto → entrega. La reserva usa además UPDATE condicional.
 - La caducidad es perezosa en cotizar/crear/consultar, no un cron. Solo libera PENDING/ACTIVE
   con payment_started_at NULL y fecha vencida. El módulo de pagos deberá marcar el inicio
   antes de la llamada externa y luego implementar reconciliación, confirmación y liberación verificadas.
 - La transacción guarda snapshots monetarios; los cambios posteriores del catálogo no cambian esos importes.
 - El precio esperado del cliente solo se compara con el total recalculado para pedir nueva confirmación.
+
+## Carrito con varios productos
+
+`transaction_items` contiene una fila por producto de un pedido. PK compuesta
+`(transaction_id, product_id)`, FK RESTRICT a transactions/products, índice adicional
+por product_id, quantity INTEGER > 0, unit_price_minor/product_amount_minor BIGINT >= 0,
+y created_at TIMESTAMPTZ. El CHECK de multiplicación usa NUMERIC para comprobar sin
+un desbordamiento intermedio. Los precios son snapshots; no se consultan precios nuevos
+para reintentar un pedido existente.
+
+`transactions.product_amount_minor` suma todas las líneas. Base y envío se agregan
+una sola vez; el CHECK del total permanece. product_id, quantity y unit_price_minor
+de cabecera se conservan como primera línea por compatibilidad con clientes anteriores;
+no describen todo el pedido. Para un pedido múltiple debe usarse items del contrato HTTP.
+El caso de uso valida el agregado y el límite BIGINT antes de escribir ambas tablas.
+
+La migración 3 copia las transacciones anteriores a transaction_items sin alterar su
+identidad, hash, estado, reserva o inventario. Su rollback rechaza pedidos múltiples
+para impedir pérdida de líneas. En producción se prefiere una migración correctiva.
+
+Un advisory lock transaccional global serializa cotización/reserva/expiración entre
+procesos. Evita ciclos al liberar pedidos con productos compartidos y mantiene el
+código explicable a esta escala. Es un límite de concurrencia deliberado: con más
+tráfico se sustituiría por un protocolo de bloqueos ordenados y reconciliación.
+No se mantiene ningún bloqueo durante llamadas a proveedores externos.

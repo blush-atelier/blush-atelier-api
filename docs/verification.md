@@ -12,24 +12,24 @@ El frontend tiene evidencia propia en su repositorio; aquí se verifica el backe
 | npm run format:check     | Correcto                                                  |
 | npm run lint             | Correcto                                                  |
 | npm run typecheck        | Correcto                                                  |
-| npm run test:cov         | 12 suites y 108 pruebas unitarias/HTTP correctas          |
-| npm run test:integration | 2 suites y 18 pruebas correctas sobre PostgreSQL real     |
+| npm run test:cov         | 13 suites y 111 pruebas unitarias/HTTP correctas          |
+| npm run test:integration | 2 suites y 23 pruebas correctas sobre PostgreSQL real     |
 | npm run build            | Correcto; genera dist/                                    |
 | npm run local:migrate    | Nueva migración aplicada conservando productos existentes |
 | npm run local:dev        | Arranque correcto; rutas nuevas registradas               |
 
-La integración se ejecutó en una base nueva, con sufijo _test y nombre único, usando
-variables temporales y el contenedor local. Solo esa base desechable fue eliminada al
-terminar. Las migraciones y tablas de la base de trabajo no se revirtieron.
+La integración se ejecutó en una base local desechable con sufijo _test, usando
+variables temporales y el contenedor Docker. Las suites limpian solo esa base de pruebas;
+no revierten las migraciones ni las tablas de la base de trabajo.
 
 ## Cobertura Jest medida
 
 | Métrica    | Cobertura |
 | ---------- | --------- |
-| Sentencias | 99.11%    |
-| Ramas      | 96.91%    |
-| Funciones  | 98.09%    |
-| Líneas     | 99.00%    |
+| Sentencias | 97.57%    |
+| Ramas      | 96.41%    |
+| Funciones  | 95.68%    |
+| Líneas     | 97.30%    |
 
 Jest incluye src completo y exige 81% global en las cuatro métricas. Reportes locales:
 coverage/coverage-summary.json y coverage/lcov.info (ignorados por Git). Los scripts
@@ -106,3 +106,11 @@ Jest: 108 pruebas unitarias/HTTP y 18 de integración correctas en la base local
 El frontend reporta 82 pruebas; 97.56% líneas, 96.93% ramas. La revisión Chrome comprobó
 22 IDs distintos en páginas 8/8/6, filtros antes de paginar, recuperación y viewports
 320–1920 px. Solo se preparó una cotización real adicional; no se creó otra reserva.
+
+## Ampliación multi-producto
+
+23 pruebas PostgreSQL: reserva de dos productos, suma de tarifas una vez, reintentos
+concurrentes sin duplicar líneas, expiración completa e idempotente, falta de stock sin
+reserva parcial, carritos en orden inverso sin sobreventa, y migración/reintento de una
+compra anterior conservando su identidad. Las suites limpian exclusivamente la BD local
+con sufijo _test. La migración 3 se aplicó además a la BD local sin borrar datos.
