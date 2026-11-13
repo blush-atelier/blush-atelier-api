@@ -1,0 +1,58 @@
+{
+  "name": "blush-atelier-api",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13 <23"
+  },
+  "scripts": {
+    "start": "node dist/bootstrap/main.js",
+    "start:dev": "node --watch --env-file-if-exists=.env -r ts-node/register src/bootstrap/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "format": "prettier --write src test docs scripts README.md *.json *.cjs *.yml .github/workflows/*.yml",
+    "format:check": "prettier --check src test docs scripts README.md *.json *.cjs *.yml .github/workflows/*.yml",
+    "test": "jest --runInBand",
+    "test:cov": "jest --runInBand --coverage",
+    "test:integration": "jest --config jest.integration.cjs --runInBand",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/shared/infrastructure/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/shared/infrastructure/database/data-source.ts",
+    "seed": "ts-node src/shared/infrastructure/database/seed.ts",
+    "local:migrate": "node scripts/local-db.cjs migrate",
+    "local:seed": "node scripts/local-db.cjs seed",
+    "local:dev": "node scripts/local-db.cjs dev"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.10",
+    "@nestjs/core": "^11.2.10",
+    "@nestjs/platform-express": "^11.2.10",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/typeorm": "^11.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^17.2.0",
+    "helmet": "^8.1.0",
+    "pg": "^8.16.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.28"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@nestjs/testing": "^11.2.10",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.0.0",
+    "@types/supertest": "^6.0.0",
+    "eslint": "^10.14.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.0.0",
+    "supertest": "^7.1.0",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.0.0"
+  }
+}
