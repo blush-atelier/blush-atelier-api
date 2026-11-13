@@ -65,3 +65,25 @@ it('seed es parametrizado y no reinicia stock existente', async () => {
     seedProducts({ query } as unknown as DataSource),
   ).rejects.toThrow('DB unavailable');
 });
+
+it('el catálogo de referencia parametriza fotos y centavos de las cuatro marcas', async () => {
+  const query = jest.fn().mockResolvedValue(undefined);
+  await seedProducts({ query } as unknown as DataSource);
+  const [sql, parameters] = query.mock.calls[0];
+  expect(sql).toContain('image_url');
+  expect(sql).not.toContain('UPDATE');
+  expect(parameters).toEqual(
+    expect.arrayContaining([
+      'LIP-MAC-RUBYWOO',
+      'LIP-TOOFACED-STARS',
+      'BLUSH-ATENEA-PINKCHAI',
+      'BLUSH-BLOOMSHELL-LOVE',
+      '11500000',
+      '12700000',
+      '4400000',
+      '2000000',
+    ]),
+  );
+  expect(sql).not.toContain('Ruby Woo');
+  expect(parameters).toHaveLength(176);
+});

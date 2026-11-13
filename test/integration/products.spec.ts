@@ -37,7 +37,7 @@ it('sirve seed desde PostgreSQL mediante todas las capas', async () => {
   const list = await request(app.getHttpServer())
     .get('/api/products')
     .expect(200);
-  expect(list.body).toHaveLength(2);
+  expect(list.body).toHaveLength(22);
   const detail = await request(app.getHttpServer())
     .get(`/api/products/${id}`)
     .expect(200);
@@ -105,5 +105,65 @@ it('rollback y reaplicacion de migracion funcionan en base desechable', async ()
   const response = await request(app.getHttpServer())
     .get('/api/products')
     .expect(200);
-  expect(response.body).toHaveLength(2);
+  expect(response.body).toHaveLength(22);
+});
+
+it('publica los veinte productos reales y repetir seed conserva su precio y reserva', async () => {
+  const realId = 'a1000000-0000-4000-8000-000000000001';
+  const original = await request(app.getHttpServer())
+    .get(`/api/products/${realId}`)
+    .expect(200);
+  expect(original.body).toMatchObject({
+    sku: 'LIP-MAC-RUBYWOO',
+    priceMinor: '11500000',
+    availableStock: 12,
+  });
+  expect(original.body.imageUrl).toMatch(/^https:\/\//);
+  await source.query(
+    'UPDATE products SET stock_reserved = 2, price_minor = $1 WHERE id = $2',
+    ['12345678', realId],
+  );
+  try {
+    await seedProducts(source);
+    const repeated = await request(app.getHttpServer())
+      .get(`/api/products/${realId}`)
+      .expect(200);
+    expect(repeated.body).toMatchObject({
+      priceMinor: '12345678',
+      availableStock: 10,
+    });
+    const list = await request(app.getHttpServer())
+      .get('/api/products')
+      .expect(200);
+    expect(list.body).toHaveLength(22);
+  } finally {
+    await source.query(
+      'UPDATE products SET stock_reserved = 0, price_minor = $1 WHERE id = $2',
+      ['11500000', realId],
+    );
+  }
+});
+
+it('incluye tres bases, tres correctores, tres sombras y tres accesorios con fotos y precios exactos', async () => {
+  const response = await request(app.getHttpServer())
+    .get('/api/products')
+    .expect(200);
+  for (const prefix of ['BASE-', 'CONCEALER-', 'EYE-', 'ACC-']) {
+    const group = response.body.filter((product: { sku: string }) =>
+      product.sku.startsWith(prefix),
+    );
+    expect(group).toHaveLength(3);
+    expect(
+      group.every(
+        (product: { imageUrl: string; priceMinor: string }) =>
+          product.imageUrl.startsWith('https://') &&
+          /^[0-9]+$/.test(product.priceMinor),
+      ),
+    ).toBe(true);
+  }
+  expect(
+    response.body.find(
+      (product: { sku: string }) => product.sku === 'BASE-ATENEA-SCENE-LIGHT',
+    ).priceMinor,
+  ).toBe('5800000');
 });
