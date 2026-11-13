@@ -127,8 +127,13 @@ Generate `docs/erd.mmd` and a rendered ERD if possible. Maintain migrations, see
 
 ## GitHub Actions CI/CD (project value-add, not an explicit rubric item)
 - GitHub organization: `blush-atelier`; independent public repositories: `blush-atelier-web` (frontend) and `blush-atelier-api` (backend).
-- On pull requests and pushes to main, run npm ci, lint, TypeScript check, Jest with coverage thresholds >80%, and build. Configure commands against actual package.json scripts; never invent passing results.
-- Deploy to AWS only after CI passes on main and AWS infrastructure is verified. Frontend: S3/CloudFront. Backend: Lambda/API Gateway.
+- On pull requests and pushes to development, staging and production, run npm ci, lint, TypeScript check, Jest with coverage thresholds >80%, and build. Configure commands against actual package.json scripts; never invent passing results.
+- Deploy to AWS only after CI passes on production and AWS infrastructure is verified. Frontend: S3/CloudFront. Backend: Lambda/API Gateway.
 - Use GitHub Actions OIDC with scoped AWS IAM role; avoid permanent AWS access keys. Never expose payment keys or AWS credentials in frontend, workflows or logs.
-- Use minimal permissions, pinned/maintained actions, concurrency controls, and deploy only from protected main.
+- Use minimal permissions, pinned/maintained actions, concurrency controls, and deploy only from protected production.
 - Document pipeline behavior and status in README.
+
+## Approved branch and environment policy
+- Permanent branches: development (local), staging (validation), production (AWS delivery). Short feature/* branches.
+- Promote by PR: feature/* -> development -> staging -> production. Wompi Sandbox in every environment.
+- Evaluate costs before adding AWS environments; prioritize one functional production infrastructure.

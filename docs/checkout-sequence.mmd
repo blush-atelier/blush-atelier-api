@@ -1,0 +1,27 @@
+sequenceDiagram
+    participant F as Frontend o Swagger
+    participant A as API y casos de uso
+    participant D as PostgreSQL
+    participant W as Wompi Sandbox
+    F->>A: Registrar cliente y entrega (sin tarjeta)
+    A->>D: Guardar contacto, direccion y hash de sesion
+    A-->>F: IDs y cookie HttpOnly
+    F->>A: Cotizar producto y cantidad
+    A-->>F: Importe + base + envio (sin reservar)
+    F->>A: Crear transaccion con Idempotency-Key y total mostrado
+    A->>D: BEGIN: bloquear solicitud/producto/entrega
+    A->>D: Recalcular, reservar stock y crear PENDING
+    D-->>A: COMMIT
+    A-->>F: Referencia backend y vencimiento de reserva
+    Note over F,W: Desde aqui: integracion futura, todavia no implementada
+    F->>W: Tarjeta directamente al proveedor por HTTPS
+    W-->>F: Token de tarjeta
+    F->>A: Iniciar pago con token, nunca PAN/CVV
+    A->>D: Guardar intento y marcar pago iniciado antes de llamada externa
+    A->>W: Solicitar pago Sandbox
+    W-->>A: Resultado o timeout
+    W->>A: Webhook autenticado
+    A->>W: Consultar y verificar estado, importe y referencia
+    A->>D: BEGIN: actualizar estado y confirmar/liberar reserva
+    D-->>A: COMMIT sin repetir efectos
+    F->>A: Consultar estado backend y stock actualizado

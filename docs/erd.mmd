@@ -1,0 +1,63 @@
+erDiagram
+    PRODUCTS ||--o{ TRANSACTIONS : contiene
+    CUSTOMERS ||--o{ TRANSACTIONS : realiza
+    CUSTOMERS ||--o{ DELIVERIES : recibe
+    DELIVERIES ||--o| TRANSACTIONS : corresponde
+    PRODUCTS {
+        uuid id PK
+        varchar sku UK
+        varchar name
+        text description
+        text image_url
+        bigint price_minor
+        char currency
+        int stock_on_hand
+        int stock_reserved
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    CUSTOMERS {
+        uuid id PK
+        varchar full_name
+        varchar email
+        varchar phone
+        char session_hash UK
+        timestamptz session_expires_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    DELIVERIES {
+        uuid id PK
+        uuid customer_id FK
+        varchar recipient_name
+        varchar recipient_phone
+        text address_line
+        varchar city
+        varchar region
+        varchar country_code
+        varchar status
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    TRANSACTIONS {
+        uuid id PK
+        varchar reference UK
+        varchar idempotency_key "UNIQUE con customer_id"
+        varchar request_hash
+        uuid product_id FK
+        uuid customer_id FK
+        uuid delivery_id FK,UK
+        int quantity
+        bigint unit_price_minor
+        bigint product_amount_minor
+        bigint base_fee_minor
+        bigint delivery_fee_minor
+        bigint total_minor
+        char currency
+        varchar status
+        varchar reservation_status
+        timestamptz payment_started_at "nullable"
+        timestamptz reservation_expires_at
+        timestamptz created_at
+        timestamptz updated_at
+    }
