@@ -166,3 +166,93 @@ duplicados/cantidades. Repetir solo los hallazgos corregidos, además de la revi
 Jest comprueba titular inválido antes de tokenizar, nombres Unicode, identidad de los
 nodos de botones y conservación del paso de edición. La consulta de fondo usa su propio
 indicador y no alterna la fase visual entre idle/resuming.
+
+## Webhook: QA automatizado sin pagos ni RDS
+
+`test/webhook-http.spec.ts` comprueba checksum/ambiente inválidos (401 y sin
+consulta al proveedor), APPROVED, DECLINED, PENDING, duplicados, pedido ajeno,
+fallo de almacenamiento (503), reintento y ausencia de datos sensibles en logs.
+Se usan el verificador real y un proveedor simulado. Ejecuta:
+
+```bash
+npm run test:cov
+```
+
+`test/integration/payments.spec.ts` verifica además en PostgreSQL que eventos
+concurrentes no descuentan dos veces, que rechazo conserva stock físico y que
+un fallo al guardar la entrega revierte transacción y stock juntos. El fallo se
+inyecta con un trigger **solo dentro de la base desechable de pruebas**.
+
+Para aislar completamente la integración de un `.env` que apunte a RDS, en WSL
+con Docker local crea este contenedor nuevo (contraseña ficticia solo para QA):
+
+```bash
+qa_container=$(docker run -d --rm \
+  -e POSTGRES_DB=blush_webhook_test -e POSTGRES_USER=qa_local \
+  -e POSTGRES_PASSWORD=qa_disposable_only postgres:17-bookworm)
+# Espera a que este comando indique "accepting connections".
+docker exec "$qa_container" pg_isready -U qa_local -d blush_webhook_test
+qa_host=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$qa_container")
+NODE_ENV=test WOMPI_ENABLED=false FRONTEND_ORIGIN=http://localhost:5173 \
+POSTGRES_HOST="$qa_host" POSTGRES_PORT=5432 POSTGRES_SSL=false \
+POSTGRES_DB=blush_webhook_test POSTGRES_USER=qa_local \
+POSTGRES_PASSWORD=qa_disposable_only BASE_FEE_MINOR=500000 DELIVERY_FEE_MINOR=1000000 \
+npm run test:integration
+# Detiene y elimina exclusivamente el contenedor creado arriba.
+docker stop "$qa_container"
+```
+
+Este ejemplo usa la IP del contenedor de Docker local en WSL. No lo sustituyas
+por un host RDS ni uses las credenciales de producción. No se envían cargos:
+las dependencias de Wompi se reemplazan por dobles en la integración.
+
+## Consultar el resultado en PostgreSQL
+
+En una sesión `psql` conectada a la base que quieras inspeccionar, usa un usuario
+de lectura y la referencia de un pedido existente. Estas consultas no modifican datos:
+
+```sql
+\set reference 'BA-UUID-DEL-PEDIDO'
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+SELECT t.reference, t.status, t.reservation_status, t.provider_payment_id,
+       t.payment_submitted_at, d.status AS delivery_status
+FROM transactions t JOIN deliveries d ON d.id = t.delivery_id
+WHERE t.reference = :'reference';
+
+SELECT p.id, i.quantity, p.stock_on_hand, p.stock_reserved,
+       p.stock_on_hand - p.stock_reserved AS available_stock
+FROM transactions t
+JOIN transaction_items i ON i.transaction_id = t.id
+JOIN products p ON p.id = i.product_id
+WHERE t.reference = :'reference';
+COMMIT;
+```
+
+| Resultado                              | Transacción / reserva | Entrega     | Stock físico de un pedido de 2 unidades, partiendo de 20 |
+| -------------------------------------- | --------------------- | ----------- | -------------------------------------------------------- |
+| Antes del resultado                    | PENDING / ACTIVE      | PENDING     | 20, con 2 reservadas                                     |
+| Aprobado                               | APPROVED / CONFIRMED  | READY       | 18, reserva liberada                                     |
+| Rechazado                              | DECLINED / RELEASED   | PENDING     | 20, reserva liberada                                     |
+| Firma inválida o fallo de persistencia | Sin cambios           | Sin cambios | Sin cambios                                              |
+| Evento final duplicado                 | Sin cambios           | Sin cambios | No vuelve a descontar                                    |
+
+Los contadores de producto incluyen otros pedidos; compara capturas antes/después
+en una base aislada. Un 503 de persistencia permite reintentar el mismo evento;
+no se devuelve 200 hasta confirmar el commit. Wompi reintenta notificaciones que
+no reciban 200 según su [documentación de eventos](https://docs.wompi.co/docs/colombia/eventos/).
+
+## Observar el webhook
+
+Los logs de `WompiEventsController` contienen mensajes JSON con `event`,
+`correlationId`, `durationMs` y `outcome` o `code`. Busca `wompi.webhook.received`,
+`wompi.webhook.processed`, `wompi.webhook.rejected` o `wompi.webhook.failed` en
+la salida de Docker o en tu recolector de logs. `outcome` distingue `confirmed`,
+`released`, `pending`, `duplicate` e `ignored`. Solo se anuncia éxito tras el commit.
+No se registra body, checksum, identificador del proveedor, tarjeta, contacto ni secretos.
+Cada recepción genera su propia correlación; no se usa un valor enviado por el cliente.
+
+Los duplicados se reconocen por estado final e identidad verificada bajo bloqueo:
+se consulta nuevamente Wompi para reconciliar su estado actual, pero no se repiten
+las escrituras. No existe una tabla adicional de eventos ni cambia el esquema.
+La llegada de un webhook real a AWS y el destino de logs en AWS requieren validación
+operativa aparte; estas pruebas locales no los acreditan.

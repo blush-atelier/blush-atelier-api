@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { ChargeCard, GetCardConfiguration } from '../application/charge-card';
 import {
   Body,
   Get,
   Ip,
+  Logger,
   Controller,
   HttpCode,
   Param,
@@ -157,11 +159,43 @@ export class PaymentsController {
 @ApiTags('payments')
 @Controller('payments/wompi')
 export class WompiEventsController {
+  private readonly logger = new Logger(WompiEventsController.name);
   constructor(private readonly processEvent: ProcessPaymentEvent) {}
   @Post('events')
   @HttpCode(200)
-  receive(@Body() input: unknown) {
-    return this.processEvent.execute(input).then(paymentValue);
+  async receive(@Body() input: unknown) {
+    const correlationId = randomUUID();
+    const started = performance.now();
+    this.logger.log(
+      JSON.stringify({ event: 'wompi.webhook.received', correlationId }),
+    );
+    let result: Awaited<ReturnType<ProcessPaymentEvent['execute']>>;
+    try {
+      result = await this.processEvent.execute(input);
+    } catch {
+      // Ni el payload ni la excepción del proveedor/ORM deben llegar al log.
+      this.logger.error(
+        JSON.stringify({
+          event: 'wompi.webhook.failed',
+          correlationId,
+          durationMs: Math.round(performance.now() - started),
+          code: 'UnexpectedFailure',
+        }),
+      );
+      throw new SafeApplicationHttpException('PaymentProviderUnavailable', 503);
+    }
+    const entry = JSON.stringify({
+      event: result.ok ? 'wompi.webhook.processed' : 'wompi.webhook.rejected',
+      correlationId,
+      durationMs: Math.round(performance.now() - started),
+      ...(result.ok
+        ? { outcome: result.value.outcome }
+        : { code: result.error }),
+    });
+    if (result.ok) this.logger.log(entry);
+    else this.logger.warn(entry);
+    paymentValue(result);
+    return { received: true };
   }
 }
 

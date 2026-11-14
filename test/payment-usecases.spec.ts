@@ -201,7 +201,7 @@ it('webhook inválido no consulta proveedor; uno válido se confirma con API pri
   expect(f.gateway.getPayment).not.toHaveBeenCalled();
   expect(await uc.execute(eventBody())).toEqual({
     ok: true,
-    value: { received: true },
+    value: { received: true, outcome: 'confirmed' },
   });
   expect(f.store.apply).toHaveBeenCalled();
 });
@@ -215,7 +215,7 @@ it('webhook ignora otros pedidos pero no un inicio inconsistente', async () => {
   jest.mocked(f.store.findByReference).mockResolvedValueOnce(null);
   expect(await uc.execute(eventBody())).toEqual({
     ok: true,
-    value: { received: true },
+    value: { received: true, outcome: 'ignored' },
   });
   expect(await uc.execute(eventBody())).toEqual({
     ok: false,

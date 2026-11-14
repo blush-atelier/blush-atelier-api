@@ -301,7 +301,10 @@ it('fallar la entrega revierte también pago y stock; el reintento puede complet
     'CREATE TRIGGER reject_payment_delivery BEFORE UPDATE ON deliveries FOR EACH ROW EXECUTE FUNCTION reject_payment_delivery()',
   );
   try {
-    await verify(f).expect(503);
+    await request(app.getHttpServer())
+      .post('/api/payments/wompi/events')
+      .send(eventBody())
+      .expect(503);
     expect((await inventory())[0]).toMatchObject({
       stock_on_hand: 20,
       stock_reserved: 2,
@@ -313,7 +316,10 @@ it('fallar la entrega revierte también pago y stock; el reintento puede complet
     await source.query('DROP TRIGGER reject_payment_delivery ON deliveries');
     await source.query('DROP FUNCTION reject_payment_delivery()');
   }
-  await verify(f).expect(200);
+  await request(app.getHttpServer())
+    .post('/api/payments/wompi/events')
+    .send(eventBody())
+    .expect(200);
   expect((await inventory())[0].stock_on_hand).toBe(18);
 });
 it('protege trazabilidad al intentar revertir una migración con pago iniciado', async () => {
@@ -410,3 +416,46 @@ it('tarjeta en claro, consentimientos falsos y sesión ajena se rechazan sin cla
     )[0].payment_submitted_at,
   ).toBeNull();
 });
+
+it.each(['APPROVED', 'DECLINED'] as const)(
+  'webhooks %s repetidos y concurrentes conservan stock, entrega y estado',
+  async (status) => {
+    const f = await create(true);
+    await start(f);
+    gateway.getPayment.mockResolvedValue({
+      ok: true,
+      value: { ...f.observed, status },
+    });
+    await Promise.all(
+      Array.from({ length: 4 }, () =>
+        request(app.getHttpServer())
+          .post('/api/payments/wompi/events')
+          .send(eventBody())
+          .expect(200),
+      ),
+    );
+    const rows = await inventory();
+    expect(rows).toEqual([
+      {
+        id: productId,
+        stock_on_hand: status === 'APPROVED' ? 18 : 20,
+        stock_reserved: 0,
+      },
+      {
+        id: secondId,
+        stock_on_hand: status === 'APPROVED' ? 17 : 20,
+        stock_reserved: 0,
+      },
+    ]);
+    const result = await f.agent.get(`/api/transactions/${f.id}`).expect(200);
+    expect(result.body).toMatchObject({
+      status,
+      reservationStatus: status === 'APPROVED' ? 'CONFIRMED' : 'RELEASED',
+    });
+    const [delivery] = await source.query(
+      'SELECT status FROM deliveries WHERE id=$1',
+      [f.deliveryId],
+    );
+    expect(delivery.status).toBe(status === 'APPROVED' ? 'READY' : 'PENDING');
+  },
+);
