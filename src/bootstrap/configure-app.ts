@@ -51,6 +51,9 @@ export function configureApp(
     credentials: true,
   });
   app.setGlobalPrefix('api');
+  const production = env.NODE_ENV === 'production';
+  if (production && env.SWAGGER_ENABLED !== 'true') return;
+
   const config = new DocumentBuilder()
     .setTitle('Blush Atelier API')
     .setVersion('0.2.0')
@@ -60,5 +63,29 @@ export function configureApp(
       'checkout',
     )
     .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  const document = SwaggerModule.createDocument(app, config);
+  for (const [path, operations] of Object.entries(document.paths)) {
+    if (!operations.post || path === '/api/payments/wompi/events') continue;
+    const parameters = (operations.post.parameters ??= []);
+    if (
+      !parameters.some(
+        (parameter) =>
+          'in' in parameter &&
+          parameter.in === 'header' &&
+          parameter.name.toLowerCase() === 'x-checkout-request',
+      )
+    )
+      parameters.push({
+        name: 'X-Checkout-Request',
+        in: 'header',
+        required: true,
+        description: 'Cabecera requerida para las escrituras del checkout.',
+        schema: { type: 'string', enum: ['1'], default: '1' },
+      });
+  }
+  const docsPath = production ? 'api/docs' : 'docs';
+  SwaggerModule.setup(docsPath, app, document, {
+    useGlobalPrefix: false,
+    jsonDocumentUrl: `/${docsPath}-json`,
+  });
 }
