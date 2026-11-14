@@ -1,0 +1,26 @@
+FROM node:22.23.3-bookworm-slim AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig*.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:22.23.3-bookworm-slim
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+COPY certs/global-bundle.pem ./certs/global-bundle.pem
+ENV NODE_EXTRA_CA_CERTS=/app/certs/global-bundle.pem
+COPY scripts/migrate-prod.cjs ./scripts/migrate-prod.cjs
+
+USER node
+EXPOSE 3000
+
+CMD ["node", "dist/bootstrap/main.js"]
