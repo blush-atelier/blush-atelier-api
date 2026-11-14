@@ -109,9 +109,9 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **183 pruebas unitarias/HTTP y 36 de integración PostgreSQL correctas**.
-Cobertura Jest del backend: sentencias **93,75%**, ramas **89,38%**,
-funciones **87,65%** y líneas **94,24%**; umbral obligatorio configurado en 81%.
+Resultado medido: **186 pruebas unitarias/HTTP y 36 de integración PostgreSQL correctas**.
+Cobertura Jest del backend: sentencias **93,82%**, ramas **89,57%**,
+funciones **87,65%** y líneas **93,72%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 
@@ -134,10 +134,24 @@ la primera ejecución de CI remoto y las protecciones de ramas siguen pendientes
 En el `.env` **del backend**, configura `WOMPI_ENABLED=true` y completa estos nombres
 con las llaves y secretos del ambiente Sandbox de tu comercio:
 
-- `WOMPI_PUBLIC_KEY`: comienza por `pub_test_`.
-- `WOMPI_PRIVATE_KEY`: comienza por `prv_test_`.
-- `WOMPI_INTEGRITY_SECRET`: comienza por `test_integrity_`.
-- `WOMPI_EVENTS_SECRET`: comienza por `test_events_`.
+- `WOMPI_PUBLIC_KEY`: llave de prueba `pub_test_` o `pub_stagtest`.
+- `WOMPI_PRIVATE_KEY`: llave del mismo ambiente, `prv_test_` o `prv_stagtest`.
+- `WOMPI_INTEGRITY_SECRET`: secreto de integridad entregado para ese ambiente, sin modificarlo.
+- `WOMPI_EVENTS_SECRET`: secreto de eventos entregado para ese ambiente, sin modificarlo.
+
+Configura el destino con `WOMPI_API_URL`. Para las credenciales de la prueba:
+
+```dotenv
+UAT_URL=https://api.co.uat.wompi.dev/v1
+UAT_SANDBOX_URL=https://api-sandbox.co.uat.wompi.dev/v1
+WOMPI_API_URL=https://api-sandbox.co.uat.wompi.dev/v1
+```
+
+Sin WOMPI_API_URL se toma UAT_SANDBOX_URL y, si tampoco existe, el Sandbox público.
+UAT_URL queda como referencia: no es el destino activo de esta integración Sandbox.
+Los destinos permitidos son Sandbox público y UAT Sandbox; no se envían llaves a
+URLs arbitrarias. El Widget público no queda certificado para UAT por cambiar esta URL:
+si la prueba proporciona un Widget específico, hay que configurar su dirección oficial.
 
 No compartas ni versiones los valores. No son el usuario/contraseña del dashboard.
 Reinicia API y frontend después de configurar. Sin habilitar Wompi, catálogo y reservas

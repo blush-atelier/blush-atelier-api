@@ -15,6 +15,7 @@ import type {
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 export interface WompiSettings {
+  apiUrl: string;
   enabled: boolean;
   publicKey: string;
   privateKey: string;
@@ -26,7 +27,13 @@ export function wompiSettings(
 ): WompiSettings {
   if (env.WOMPI_ENABLED && !['true', 'false'].includes(env.WOMPI_ENABLED))
     throw new Error('Invalid WOMPI_ENABLED');
+  const apiUrl = (
+    env.WOMPI_API_URL?.trim() ||
+    env.UAT_SANDBOX_URL?.trim() ||
+    'https://sandbox.wompi.co/v1'
+  ).replace(/\/+$/, '');
   const value = {
+    apiUrl,
     enabled: env.WOMPI_ENABLED === 'true',
     publicKey: env.WOMPI_PUBLIC_KEY ?? '',
     privateKey: env.WOMPI_PRIVATE_KEY ?? '',
@@ -34,20 +41,43 @@ export function wompiSettings(
     eventsSecret: env.WOMPI_EVENTS_SECRET ?? '',
   };
   if (value.enabled) {
-    for (const [key, prefix, variable] of [
-      ['publicKey', 'pub_test_', 'WOMPI_PUBLIC_KEY'],
-      ['privateKey', 'prv_test_', 'WOMPI_PRIVATE_KEY'],
-      ['integritySecret', 'test_integrity_', 'WOMPI_INTEGRITY_SECRET'],
-      ['eventsSecret', 'test_events_', 'WOMPI_EVENTS_SECRET'],
-    ] as const)
-      if (
-        !value[key].startsWith(prefix) ||
-        value[key].length <= prefix.length ||
-        /\s/.test(value[key])
-      )
+    const sandboxUrls = [
+      'https://sandbox.wompi.co/v1',
+      'https://api-sandbox.co.uat.wompi.dev/v1',
+    ];
+    if (!sandboxUrls.includes(apiUrl))
+      throw new Error(
+        'Configure WOMPI_API_URL with an approved Sandbox endpoint',
+      );
+    for (const [key, variable] of [
+      ['publicKey', 'WOMPI_PUBLIC_KEY'],
+      ['privateKey', 'WOMPI_PRIVATE_KEY'],
+      ['integritySecret', 'WOMPI_INTEGRITY_SECRET'],
+      ['eventsSecret', 'WOMPI_EVENTS_SECRET'],
+    ] as const) {
+      const supplied = value[key];
+      const kind = key === 'publicKey' ? 'pub' : 'prv';
+      const keyValid =
+        key === 'publicKey' || key === 'privateKey'
+          ? new RegExp(`^${kind}_(?:test_|stagtest)[A-Za-z0-9_-]+$`).test(
+              supplied,
+            )
+          : !/^(?:prod_|stagprod)/.test(supplied);
+      // El secreto es opaco: no se deduce su validez de un prefijo del Sandbox público.
+      if (!supplied || /\s/.test(supplied) || !keyValid)
         throw new Error(
-          `Configure Wompi Sandbox keys and secrets: ${variable} must start with ${prefix} and contain no whitespace`,
+          `Configure Wompi Sandbox keys and secrets: ${variable} is missing or has invalid format`,
         );
+    }
+    const stagingKey = value.publicKey.startsWith('pub_stagtest');
+    if (stagingKey !== value.privateKey.startsWith('prv_stagtest'))
+      throw new Error(
+        'WOMPI_PUBLIC_KEY and WOMPI_PRIVATE_KEY must belong to the same test environment',
+      );
+    if (stagingKey && apiUrl === 'https://sandbox.wompi.co/v1')
+      throw new Error(
+        'Configure WOMPI_API_URL with the UAT Sandbox endpoint for stagtest credentials',
+      );
   }
   return value;
 }
@@ -64,9 +94,9 @@ export class WompiGateway implements PaymentGateway {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(id))
       return { ok: false, error: 'InvalidPaymentInput' };
     try {
-      // URL fija Sandbox: una variable mal configurada no puede enviar cobros a producción.
+      // El destino se valida al configurar: nunca enviamos la llave privada a hosts arbitrarios.
       const response = await this.request(
-        `https://sandbox.wompi.co/v1/transactions/${encodeURIComponent(id)}`,
+        `${this.settings.apiUrl}/transactions/${encodeURIComponent(id)}`,
         {
           headers: {
             Authorization: `Bearer ${this.settings.privateKey}`,
@@ -158,7 +188,12 @@ export class WompiEvents implements PaymentEventVerifier {
     if (
       !record(body) ||
       body.event !== 'transaction.updated' ||
-      body.environment !== 'test' ||
+      ![
+        'test',
+        ...(this.settings.apiUrl === 'https://api-sandbox.co.uat.wompi.dev/v1'
+          ? ['stagtest']
+          : []),
+      ].includes(String(body.environment)) ||
       !record(body.data) ||
       !record(body.data.transaction) ||
       typeof body.data.transaction.id !== 'string' ||

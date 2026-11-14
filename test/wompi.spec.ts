@@ -217,7 +217,7 @@ it('identifica la variable inválida sin incluir su valor en el error', () => {
     'WOMPI_INTEGRITY_SECRET',
     'WOMPI_EVENTS_SECRET',
   ] as const) {
-    const invalid = 'DO_NOT_EXPOSE_THIS_VALUE';
+    const invalid = 'DO NOT EXPOSE THIS VALUE';
     try {
       wompiSettings({ ...env, [variable]: invalid });
       throw new Error('expected configuration rejection');
@@ -227,4 +227,75 @@ it('identifica la variable inválida sin incluir su valor en el error', () => {
       expect((error as Error).message).not.toContain(invalid);
     }
   }
+});
+
+it('consulta UAT Sandbox configurado y acepta credenciales stagtest sin inventar prefijos de secretos', async () => {
+  const configured = wompiSettings({
+    WOMPI_ENABLED: 'true',
+    UAT_URL: 'https://api.co.uat.wompi.dev/v1',
+    UAT_SANDBOX_URL: 'https://api-sandbox.co.uat.wompi.dev/v1/',
+    WOMPI_PUBLIC_KEY: 'pub_stagtest_fixture',
+    WOMPI_PRIVATE_KEY: 'prv_stagtest_fixture',
+    WOMPI_INTEGRITY_SECRET: 'stagtest_integrity_fixture',
+    WOMPI_EVENTS_SECRET: 'stagtest_events_fixture',
+  });
+  const request = jest
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ data })));
+  expect(
+    (await new WompiGateway(configured, request).getPayment(data.id)).ok,
+  ).toBe(true);
+  expect(request.mock.calls[0][0]).toBe(
+    'https://api-sandbox.co.uat.wompi.dev/v1/transactions/payment-1',
+  );
+  const stagedEvent = eventBody();
+  stagedEvent.environment = 'stagtest';
+  stagedEvent.signature.checksum = createHash('sha256')
+    .update(
+      `${data.status}${data.amount_in_cents}${data.id}${stagedEvent.timestamp}${configured.eventsSecret}`,
+    )
+    .digest('hex');
+  expect(new WompiEvents(configured).verify(stagedEvent).ok).toBe(true);
+  expect(new WompiEvents(settings).verify(stagedEvent).ok).toBe(false);
+  expect(
+    new WompiCheckout(configured).create('ref', '100', '2099-01-01T00:00:00Z')
+      .ok,
+  ).toBe(true);
+});
+it('WOMPI_API_URL prevalece sobre UAT_SANDBOX_URL y bloquea destinos de producción/arbitrarios', () => {
+  const env = {
+    WOMPI_ENABLED: 'true',
+    WOMPI_PUBLIC_KEY: 'pub_test_fixture',
+    WOMPI_PRIVATE_KEY: 'prv_test_fixture',
+    WOMPI_INTEGRITY_SECRET: 'opaque-fixture',
+    WOMPI_EVENTS_SECRET: 'another-fixture',
+    UAT_SANDBOX_URL: 'https://api-sandbox.co.uat.wompi.dev/v1',
+  };
+  expect(
+    wompiSettings({ ...env, WOMPI_API_URL: 'https://sandbox.wompi.co/v1/' })
+      .apiUrl,
+  ).toBe('https://sandbox.wompi.co/v1');
+  for (const url of [
+    'https://production.wompi.co/v1',
+    'https://api.co.uat.wompi.dev/v1',
+    'https://attacker.example/v1',
+    'http://api-sandbox.co.uat.wompi.dev/v1',
+  ])
+    expect(() => wompiSettings({ ...env, WOMPI_API_URL: url })).toThrow(
+      'Sandbox endpoint',
+    );
+  expect(() =>
+    wompiSettings({ ...env, WOMPI_PRIVATE_KEY: 'prv_stagtest_fixture' }),
+  ).toThrow('same test environment');
+  expect(() =>
+    wompiSettings({
+      ...env,
+      WOMPI_API_URL: 'https://sandbox.wompi.co/v1',
+      WOMPI_PUBLIC_KEY: 'pub_stagtest_fixture',
+      WOMPI_PRIVATE_KEY: 'prv_stagtest_fixture',
+    }),
+  ).toThrow('UAT Sandbox');
+  expect(() =>
+    wompiSettings({ ...env, WOMPI_INTEGRITY_SECRET: 'prod_integrity_fixture' }),
+  ).toThrow('WOMPI_INTEGRITY_SECRET');
 });
