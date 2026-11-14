@@ -1,6 +1,6 @@
 # Acceptance checklist — tick off with evidence
 
-Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md). Los apartados de evidencia de abajo registran hitos históricos; no prueban pagos Wompi ni AWS. Medición actual: API 111 + 23 integración, WEB 99 pruebas; ambos >80% en las cuatro métricas.
+Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md). Los apartados de evidencia de abajo registran hitos históricos; no prueban pagos Wompi ni AWS. Medición actual: API 111 + 23 integración, WEB 101 pruebas; ambos >80% en las cuatro métricas.
 
 ## 1. Repository and setup
 
@@ -193,7 +193,7 @@ Completado localmente: React/Redux, catálogo/detalle responsive, entrega, resum
 PENDING con sesión y reserva, recuperación, PostgreSQL/migraciones/seed, hexagonal/ROP
 y Jest >80% en ambos repositorios. Las marcas de UI corresponden a Chrome emulado,
 no a una certificación de todos los navegadores. La pantalla actual muestra una reserva,
-no el resultado de un pago. Frontend: 99 pruebas; backend: 111 + 23 integración.
+no el resultado de un pago. Frontend: 101 pruebas; backend: 111 + 23 integración.
 
 Pendiente obligatorio: captura/tokenización de tarjeta con Wompi Sandbox, procesar y
 verificar pago desde backend, webhook autenticado/idempotente y actualización definitiva
@@ -209,3 +209,19 @@ La infraestructura puede prepararse en paralelo; la entrega completa requiere el
 - [x] Competencia con orden inverso de productos sin sobreventa, probada en PostgreSQL.
 - [x] Migración preserva pedido anterior y su reintento idempotente.
 - [x] Evidencia actual: 111 pruebas unitarias/HTTP y 23 de integración; cobertura en README.
+
+## Último ajuste UX y cierre de entrega
+
+- [x] dialog-actions vuelve al flujo normal y deja de superponerse al formulario.
+- [x] Departamento antes de Ciudad; fuente DIVIPOLA local, 32 departamentos + Bogotá D.C.; cambiar departamento limpia ciudad.
+- [x] Agregar abre panel lateral, conserva ruta y Redux, sin reservar; cierre explícito/Escape y movimiento reducido.
+- [x] 101 pruebas frontend; lint, typecheck y build correctos; todas las métricas de cobertura >80%.
+- [ ] Captura/validación de tarjeta y checkout Wompi Sandbox real, no solo PENDING.
+- [ ] Verificación del proveedor, webhook auténtico/idempotente y stock/entrega finales.
+- [ ] Probar F5, timeout/reintento, rechazo y eventos duplicados en el ciclo de pago.
+- [ ] Mantener Jest >80% al añadir pago y revisar navegadores adicionales.
+- [ ] AWS conectado con HTTPS, DB protegida, cookies/CORS y E2E público Sandbox.
+- [ ] README reproducido desde clon limpio, URLs app/API/Swagger y evidencia final.
+
+La brecha de los 100 puntos base y 50 bonus se detalla en la auditoría backend;
+no se declaran puntos concedidos ni AWS/Wompi funcionando sin verificarlos.
