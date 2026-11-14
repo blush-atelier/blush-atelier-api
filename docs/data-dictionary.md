@@ -120,3 +120,10 @@ procesos. Evita ciclos al liberar pedidos con productos compartidos y mantiene e
 código explicable a esta escala. Es un límite de concurrencia deliberado: con más
 tráfico se sustituiría por un protocolo de bloqueos ordenados y reconciliación.
 No se mantiene ningún bloqueo durante llamadas a proveedores externos.
+
+Pagos Sandbox en `transactions`: `payment_expires_at` fija la vigencia del intento;
+`provider_payment_id` es nullable y único; `provider_payment_status` conserva el estado
+verificado del proveedor. Se reutiliza la referencia única del pedido y un solo intento.
+Los eventos repetidos se deduplican por la transición atómica, sin guardar el payload
+del webhook ni datos de tarjeta. Un intento iniciado con resultado desconocido no se
+libera por tiempo: requiere verificación del proveedor.

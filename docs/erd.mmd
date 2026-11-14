@@ -59,6 +59,9 @@ erDiagram
         varchar status
         varchar reservation_status
         timestamptz payment_started_at "nullable"
+        timestamptz payment_expires_at "nullable"
+        varchar provider_payment_id UK "nullable"
+        varchar provider_payment_status "nullable"
         timestamptz reservation_expires_at
         timestamptz created_at
         timestamptz updated_at

@@ -103,6 +103,7 @@ it('rollback y reaplicacion de migracion funcionan en base desechable', async ()
   await source.undoLastMigration();
   await source.undoLastMigration();
   await source.undoLastMigration();
+  await source.undoLastMigration();
   await expect(source.query('SELECT * FROM products')).rejects.toThrow();
   await source.runMigrations();
   await seedProducts(source);

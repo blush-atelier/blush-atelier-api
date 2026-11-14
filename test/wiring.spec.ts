@@ -47,7 +47,7 @@ it('el DataSource CLI usa las mismas migraciones sin abrir conexiones al importa
       await import('../src/shared/infrastructure/database/data-source');
     expect(source.isInitialized).toBe(false);
     expect(source.options.synchronize).toBe(false);
-    expect(source.options.migrations).toHaveLength(3);
+    expect(source.options.migrations).toHaveLength(4);
   } finally {
     process.env = previous;
   }

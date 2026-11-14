@@ -1,3 +1,4 @@
+import { PaymentsModule } from '../payments/infrastructure/payments.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { CustomersModule } from '../customers/infrastructure/customers.module';
@@ -17,6 +18,7 @@ import { databaseOptions } from '../shared/infrastructure/database/database-opti
     CustomersModule,
     DeliveriesModule,
     TransactionsModule,
+    PaymentsModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

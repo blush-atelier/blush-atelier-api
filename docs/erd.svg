@@ -2,7 +2,7 @@
 <title id="title">Blush Atelier: modelo PostgreSQL con carrito múltiple</title>
 <desc id="desc">Representación del modelo de docs/erd.mmd: cinco tablas con claves, relaciones y snapshots monetarios por línea.</desc>
 <rect width="100%" height="100%" fill="#faf6f2"/>
-<text x="20" y="42" font-family="sans-serif" font-size="25" fill="#352c30">Blush Atelier · PostgreSQL · carrito y reserva PENDING</text>
+<text x="20" y="42" font-family="sans-serif" font-size="25" fill="#352c30">Blush Atelier · PostgreSQL · carrito y pagos Sandbox</text>
 <text x="20" y="78" font-family="sans-serif" font-size="15" fill="#76515d">Una transacción contiene varias líneas. Cada línea conserva cantidad y precio acordados.</text>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#76515d"/></marker></defs>
 <path d="M650 190 H610 V940 H600" fill="none" stroke="#76515d" stroke-width="2" marker-end="url(#arrow)"/>
@@ -114,7 +114,7 @@
 <text x="666" y="895" font-family="monospace" font-size="12" fill="#352c30">updated_at</text>
 <text x="940" y="895" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
 <text x="1042" y="895" font-family="monospace" font-size="11" fill="#76515d"></text>
-<rect x="20" y="850" width="580" height="612" rx="8" fill="white" stroke="#76515d"/>
+<rect x="20" y="850" width="580" height="696" rx="8" fill="white" stroke="#76515d"/>
 <rect x="20" y="850" width="580" height="44" rx="8" fill="#76515d"/>
 <text x="36" y="879" font-family="sans-serif" font-size="20" fill="white">TRANSACTIONS</text>
 <text x="36" y="915" font-family="monospace" font-size="12" fill="#352c30">id</text>
@@ -177,6 +177,15 @@
 <text x="36" y="1447" font-family="monospace" font-size="12" fill="#352c30">updated_at</text>
 <text x="310" y="1447" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
 <text x="412" y="1447" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1475" font-family="monospace" font-size="12" fill="#352c30">payment_expires_at</text>
+<text x="310" y="1475" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="1475" font-family="monospace" font-size="11" fill="#76515d">nullable</text>
+<text x="36" y="1503" font-family="monospace" font-size="12" fill="#352c30">provider_payment_id</text>
+<text x="310" y="1503" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="1503" font-family="monospace" font-size="11" fill="#76515d">UK, nullable</text>
+<text x="36" y="1531" font-family="monospace" font-size="12" fill="#352c30">provider_payment_status</text>
+<text x="310" y="1531" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="1531" font-family="monospace" font-size="11" fill="#76515d">nullable</text>
 <rect x="650" y="1120" width="580" height="220" rx="8" fill="white" stroke="#76515d"/>
 <rect x="650" y="1120" width="580" height="44" rx="8" fill="#76515d"/>
 <text x="666" y="1149" font-family="sans-serif" font-size="20" fill="white">TRANSACTION_ITEMS</text>

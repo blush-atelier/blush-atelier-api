@@ -3,7 +3,8 @@
 Backend de la prueba Full Stack: NestJS, TypeScript, PostgreSQL y TypeORM.
 Frontend independiente: [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web).
 Incluye catálogo, carrito de varios productos, cliente, entrega, cotización y una transacción PENDING con reserva atómica de stock.
-El procesamiento de pagos y el despliegue siguen pendientes.
+La integración Wompi Sandbox está implementada para pruebas locales; falta validarla
+con credenciales del comercio y verificar el despliegue AWS.
 Wompi se usará exclusivamente en Sandbox en todos los ambientes.
 
 ## Ejecutar localmente
@@ -61,7 +62,7 @@ Expande un endpoint, pulsa **Try it out** y luego **Execute**. Los productos son
 | GET    | `/api/transactions/{id}`               | Reanudar y consultar el estado de la propia compra |
 
 En cada POST usa `X-Checkout-Request: 1`. Swagger muestra la cabecera; registra primero
-el cliente para que el navegador guarde la cookie. No introduzcas tarjetas.
+el cliente para que el navegador guarde la cookie. No introduzcas tarjetas en Swagger. La captura se hace únicamente en el Widget alojado de Wompi.
 [Ejemplos para probar el flujo](docs/checkout-testing.md).
 
 UUID inválido: 400; producto inexistente: 404; almacenamiento no disponible: 503.
@@ -85,9 +86,10 @@ Las reservas sin pago vencen en 15 minutos; su liberación se evalúa al cotizar
 o consultar transacciones. Cada pedido conserva sus líneas en `transaction_items`; las tarifas se aplican una sola vez.
 [Decisiones y notas para entrevista](docs/decisions-and-interview-notes.md).
 
-`payments/domain` define el puerto del proveedor y las reglas de confirmación/liberación
-con Result. Son decisiones puras: el adaptador Wompi y su aplicación atómica en DB
-siguen pendientes; esta etapa todavía no procesa pagos.
+`payments/domain` decide transiciones con Result; `application` prepara/verifica pagos
+y procesa eventos; `infrastructure` implementa Wompi, HTTP y persistencia. La llamada
+al proveedor queda fuera del bloqueo DB; la confirmación/liberación de todas las líneas
+y la entrega se guardan atómicamente. Duplicados no repiten el movimiento de stock.
 
 ![Modelo PostgreSQL implementado: productos, clientes, entregas y transacciones](docs/erd.svg)
 
@@ -107,9 +109,9 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **144 pruebas unitarias/HTTP correctas; última validación PostgreSQL: 23 de integración**.
-Cobertura Jest del backend: sentencias **97,64%**, ramas **96,78%**,
-funciones **95,72%** y líneas **97,39%**; umbral obligatorio configurado en 81%.
+Resultado medido: **183 pruebas unitarias/HTTP y 36 de integración PostgreSQL correctas**.
+Cobertura Jest del backend: sentencias **93,75%**, ramas **89,38%**,
+funciones **87,65%** y líneas **94,24%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 
@@ -127,11 +129,56 @@ PostgreSQL en Docker y los comandos locales están verificados; el contenedor de
 la primera ejecución de CI remoto y las protecciones de ramas siguen pendientes.
 [Checklist de aceptación](docs/acceptance-checklist.md).
 
-## Protección de información
+## Wompi Sandbox: configurar y probar
 
-La API actual rechaza campos de tarjeta y no los refleja en errores. El futuro flujo
-enviará la tarjeta directamente a Wompi y el backend trabajará solo con su token.
-La cookie del checkout es HttpOnly; precio, stock y estado dependen del servidor.
-[Explicación de tarjeta, token y sesión](docs/payment-security.md).
+En el `.env` **del backend**, configura `WOMPI_ENABLED=true` y completa estos nombres
+con las llaves y secretos del ambiente Sandbox de tu comercio:
 
-[Auditoría de entrega y plan mínimo](docs/delivery-audit.md).
+- `WOMPI_PUBLIC_KEY`: comienza por `pub_test_`.
+- `WOMPI_PRIVATE_KEY`: comienza por `prv_test_`.
+- `WOMPI_INTEGRITY_SECRET`: comienza por `test_integrity_`.
+- `WOMPI_EVENTS_SECRET`: comienza por `test_events_`.
+
+No compartas ni versiones los valores. No son el usuario/contraseña del dashboard.
+Reinicia API y frontend después de configurar. Sin habilitar Wompi, catálogo y reservas
+funcionan; el intento de pago devuelve `PaymentNotConfigured`. No se instalaron paquetes
+nuevos; se usa fetch/crypto de Node y el script oficial alojado del Widget.
+
+| Método | Endpoint                                      | Uso                                                                          |
+| ------ | --------------------------------------------- | ---------------------------------------------------------------------------- |
+| POST   | `/api/transactions/{id}/payment-session`      | Sesión firmada para un PENDING propio; cuerpo `{ "method": "CARD" }`         |
+| POST   | `/api/transactions/{id}/payment-verification` | Consultar al proveedor; `{}` o `{ "providerPaymentId": "ID_DEL_PROVEEDOR" }` |
+| POST   | `/api/payments/wompi/events`                  | Webhook firmado de Wompi, sin cookie ni cabecera del comprador               |
+
+Los dos primeros requieren cookie y `X-Checkout-Request: 1`. Después de verificar,
+GET `/api/transactions/{id}` muestra el estado guardado por el servidor. No envíes
+status, importe ni tarjeta a la verificación: no forman parte de su contrato.
+
+Prueba en el frontend: carrito → entrega → resumen/Backdrop → Continuar con el pago.
+Se crea PENDING antes de abrir Wompi. Elige tarjeta y usa exclusivamente los
+[datos oficiales de Sandbox](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/).
+Revisa aprobado, rechazo, cierre sin pagar y recuperación tras F5; el estado mostrado
+proviene del backend, no del callback. Un rechazo libera reserva; aprobación confirma
+stock y deja entrega READY; timeout conserva PENDING. No reintentes con otra compra
+si el resultado todavía es desconocido.
+
+Para recibir eventos reales, configura en el dashboard Sandbox una URL HTTPS pública
+que llegue a `/api/payments/wompi/events` de esta API (AWS actualizado o un túnel local
+que controles). Wompi no puede llamar a localhost. El callback permite probar el pago
+local, pero refrescar durante el Widget requiere webhook accesible para no perder su
+resultado. Si falla la respuesta de verificación, el frontend conserva solo el ID del
+proveedor para reconsultarlo; también puedes reconciliarlo desde Swagger con ese ID.
+Un intento iniciado sin resultado verificable conserva stock para evitar sobreventa;
+no se libera automáticamente por vencer el reloj.
+
+El número completo y CVV se recogen en el formulario alojado de Wompi, no en nuestra
+API, Redux, localStorage o logs. La API firma con secretos backend, valida checksum
+con comparación constante y consulta el estado con llave privada. BIGINT/bigint y
+strings JSON conservan precisión; antes de convertir al número requerido por el Widget
+se comprueba Number.MAX_SAFE_INTEGER.
+
+Evidencia actual: proveedor simulado en Jest/Chrome y stock real en PostgreSQL local.
+**Pago real Sandbox con tus credenciales, webhook público y AWS: pendientes de validación.**
+Documentación oficial: [Widget](https://docs.wompi.co/docs/colombia/widget-checkout-web/),
+[eventos](https://docs.wompi.co/docs/colombia/eventos/) y
+[consulta backend](https://docs.wompi.co/docs/colombia/seguimiento-de-transacciones/).

@@ -1,6 +1,6 @@
 # Acceptance checklist — tick off with evidence
 
-Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md). Los apartados de evidencia de abajo registran hitos históricos; no prueban pagos Wompi ni AWS. Medición actual: API 111 + 23 integración, WEB 99 pruebas; ambos >80% en las cuatro métricas.
+Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md). Los apartados de evidencia de abajo registran hitos históricos; no prueban pagos Wompi ni AWS. Medición actual: API 183 + 36 integración, WEB 126 pruebas; ambos >80% en las cuatro métricas.
 
 ## 1. Repository and setup
 
@@ -36,12 +36,12 @@ Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md
 - [x] Customer creation/registration endpoint validates data.
 - [x] Delivery creation endpoint validates data.
 - [x] Transaction endpoint creates PENDING transaction and returns reference.
-- [ ] Payment endpoint initiates Sandbox flow.
-- [ ] Transaction status endpoint returns backend-verified status.
-- [ ] Webhook endpoint validates authenticity and handles duplicate events idempotently.
+- [x] Payment endpoint initiates Sandbox flow.
+- [x] Transaction status endpoint returns backend-verified status.
+- [x] Webhook endpoint validates authenticity and handles duplicate events idempotently.
 - [x] Stock reservation is atomic; insufficient stock is rejected. Final stock confirmation after payment remains pending.
 - [ ] Duplicate requests do not double-charge or double-decrement stock.
-- [ ] Provider decline/failure leaves consistent transaction and stock state.
+- [x] Provider decline/failure leaves consistent transaction and stock state.
 - [x] Backend calculates price, fees, delivery fee and stock; frontend values are not trusted.
 - [x] API uses correct HTTP status codes and validation errors.
 
@@ -83,8 +83,8 @@ Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md
 - [x] API/controller tests cover validation and HTTP mapping.
 - [x] Frontend tests cover form validation, Redux state, loading/error/success.
 - [x] Payment transition policy: 33 domain cases verify identity, exact amounts, final states and duplicate decisions; provider adapter and DB effects remain pending.
-- [ ] Payment adapter tests mock provider; no real payment calls.
-- [ ] Duplicate webhook test.
+- [x] Payment adapter tests mock provider; no real payment calls.
+- [x] Duplicate webhook test.
 - [x] Insufficient stock test.
 - [ ] Duplicate payment/idempotency test.
 - [x] Stock concurrency/oversell test.
@@ -210,3 +210,16 @@ La infraestructura puede prepararse en paralelo; la entrega completa requiere el
 - [x] Competencia con orden inverso de productos sin sobreventa, probada en PostgreSQL.
 - [x] Migración preserva pedido anterior y su reintento idempotente.
 - [x] Evidencia actual: 111 pruebas unitarias/HTTP y 23 de integración; cobertura en README.
+
+## Integración de pagos — evidencia local
+
+- [x] Sesión Sandbox firmada y estable; PENDING previo, propiedad y expiración validadas.
+- [x] Consulta privada del proveedor, webhook autenticado y proyección de campos seguros.
+- [x] PostgreSQL: aprobación de todas las líneas/entrega READY, liberación por rechazo y duplicados concurrentes sin repetir stock; rollback y timeout comprobados.
+- [x] API: 183 pruebas unitarias/HTTP y 36 PostgreSQL; métricas >80% en README.
+- [x] Frontend conectado a Widget/puertos; 126 pruebas, proveedor simulado, recuperación del ID seguro.
+- [ ] Ejecutar aprobado/rechazado/error reales con credenciales propias de Sandbox.
+- [ ] Webhook HTTPS accesible desde Wompi y F5 durante pago real comprobados.
+- [ ] Confirmar no doble cobro en Sandbox y completar validación AWS/otros navegadores.
+
+Los checks nuevos acreditan implementación y pruebas locales; no certifican proveedor real ni despliegue.

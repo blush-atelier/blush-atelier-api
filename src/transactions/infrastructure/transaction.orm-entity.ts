@@ -33,6 +33,23 @@ export class TransactionOrmEntity {
   reservationExpiresAt!: Date;
   @Column({ name: 'payment_started_at', type: 'timestamptz', nullable: true })
   paymentStartedAt!: Date | null;
+  @Column({ name: 'payment_expires_at', type: 'timestamptz', nullable: true })
+  paymentExpiresAt!: Date | null;
+  @Column({
+    name: 'provider_payment_id',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+    unique: true,
+  })
+  providerPaymentId!: string | null;
+  @Column({
+    name: 'provider_payment_status',
+    type: 'varchar',
+    length: 16,
+    nullable: true,
+  })
+  providerPaymentStatus!: string | null;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })

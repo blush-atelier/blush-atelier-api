@@ -12,7 +12,11 @@ export interface PaymentObservation {
 }
 
 export type PaymentProviderError =
-  'PaymentProviderUnavailable' | 'PaymentNotFound' | 'InvalidProviderResponse';
+  | 'PaymentNotConfigured'
+  | 'InvalidPaymentInput'
+  | 'PaymentProviderUnavailable'
+  | 'PaymentNotFound'
+  | 'InvalidProviderResponse';
 
 export interface PaymentGateway {
   // Solo el adaptador consulta al proveedor; un estado enviado por el navegador no es evidencia.

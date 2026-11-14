@@ -22,12 +22,14 @@ const statusCodes: Record<CheckoutError, number> = {
   AmountOutOfRange: 422,
   CheckoutStorageUnavailable: 503,
 };
-export class CheckoutHttpException extends HttpException {
+export class SafeApplicationHttpException extends HttpException {
+  constructor(code: string, status: number) {
+    super({ code, message: 'No se pudo completar la solicitud.' }, status);
+  }
+}
+export class CheckoutHttpException extends SafeApplicationHttpException {
   constructor(code: CheckoutError) {
-    super(
-      { code, message: 'No se pudo completar la solicitud.' },
-      statusCodes[code],
-    );
+    super(code, statusCodes[code]);
   }
 }
 export function checkoutValue<T>(result: CheckoutResult<T>): T {
@@ -55,7 +57,7 @@ export class SafeHttpExceptionFilter implements ExceptionFilter {
       this.logger.error('HTTP request failed unexpectedly');
     // Ni errores de JSON ni excepciones inesperadas reflejan el cuerpo recibido.
     const body =
-      error instanceof CheckoutHttpException
+      error instanceof SafeApplicationHttpException
         ? error.getResponse()
         : {
             code: status === 400 ? 'InvalidInput' : 'RequestRejected',
