@@ -34,18 +34,20 @@ export function wompiSettings(
     eventsSecret: env.WOMPI_EVENTS_SECRET ?? '',
   };
   if (value.enabled) {
-    for (const [key, prefix] of [
-      ['publicKey', 'pub_test_'],
-      ['privateKey', 'prv_test_'],
-      ['integritySecret', 'test_integrity_'],
-      ['eventsSecret', 'test_events_'],
+    for (const [key, prefix, variable] of [
+      ['publicKey', 'pub_test_', 'WOMPI_PUBLIC_KEY'],
+      ['privateKey', 'prv_test_', 'WOMPI_PRIVATE_KEY'],
+      ['integritySecret', 'test_integrity_', 'WOMPI_INTEGRITY_SECRET'],
+      ['eventsSecret', 'test_events_', 'WOMPI_EVENTS_SECRET'],
     ] as const)
       if (
         !value[key].startsWith(prefix) ||
         value[key].length <= prefix.length ||
         /\s/.test(value[key])
       )
-        throw new Error('Configure Wompi Sandbox keys and secrets');
+        throw new Error(
+          `Configure Wompi Sandbox keys and secrets: ${variable} must start with ${prefix} and contain no whitespace`,
+        );
   }
   return value;
 }

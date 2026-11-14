@@ -202,3 +202,29 @@ it('un estado alterado invalida la firma', () => {
     error: 'InvalidWebhook',
   });
 });
+
+it('identifica la variable inválida sin incluir su valor en el error', () => {
+  const env = {
+    WOMPI_ENABLED: 'true',
+    WOMPI_PUBLIC_KEY: 'pub_test_fixture',
+    WOMPI_PRIVATE_KEY: 'prv_test_fixture',
+    WOMPI_INTEGRITY_SECRET: 'test_integrity_fixture',
+    WOMPI_EVENTS_SECRET: 'test_events_fixture',
+  };
+  for (const variable of [
+    'WOMPI_PUBLIC_KEY',
+    'WOMPI_PRIVATE_KEY',
+    'WOMPI_INTEGRITY_SECRET',
+    'WOMPI_EVENTS_SECRET',
+  ] as const) {
+    const invalid = 'DO_NOT_EXPOSE_THIS_VALUE';
+    try {
+      wompiSettings({ ...env, [variable]: invalid });
+      throw new Error('expected configuration rejection');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain(variable);
+      expect((error as Error).message).not.toContain(invalid);
+    }
+  }
+});
