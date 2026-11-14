@@ -43,7 +43,7 @@ no sustituye las comprobaciones de propiedad, importe y estado de la compra.
 
 En local: HTTP de desarrollo, cookie SameSite=Lax; utiliza siempre `localhost`.
 Wompi se contacta por HTTPS. En producción el código exige origen frontend HTTPS;
-la cookie es Secure, HttpOnly y SameSite=None. **HTTPS desplegado aún no está validado**.
+la cookie es Secure, HttpOnly y SameSite=None. **CloudFront respondió por HTTPS en esta revisión; no se verificó TLS del origen API/RDS desplegado**.
 CORS limita el origen; los POST del comprador requieren `X-Checkout-Request: 1`.
 El webhook tiene su autenticación propia. `/api` devuelve `Cache-Control: no-store`.
 
@@ -68,7 +68,15 @@ su stock desde el navegador. No hay cuenta/historial ni recuperación de la sesi
   físico y entrega READY; DECLINED/ERROR liberan reserva atómicamente, una sola vez.
 - Timeout no significa rechazo. Intentos enviados conservan PENDING/reserva hasta
   reconciliar. Las reservas no iniciadas vencen a los 15 minutos y se liberan perezosamente.
-- Webhooks: checksum con comparación constante, consulta privada y aplicación idempotente.
+- Webhooks: SHA-256 de propiedades en su orden recibido + timestamp + secreto de
+  eventos, comparado con `timingSafeEqual`. Se acepta el checksum del JSON según
+  la documentación oficial; no hace falta la cabecera `X-Event-Checksum`.
+- Solo se aceptan eventos de prueba. Tras validar la firma se consulta la API privada:
+  el estado del body no es autoridad. Un duplicado final se reconoce bajo bloqueo y
+  no vuelve a escribir; un fallo DB revierte pago, stock y entrega y devuelve 503.
+- Logs JSON del webhook: correlación aleatoria, duración, resultado o código controlado.
+  No se imprimen payloads, firmas, IDs del proveedor, excepciones ni datos de contacto.
+  [Pruebas y consultas de lectura](checkout-testing.md#webhook-qa-automatizado-sin-pagos-ni-rds).
 - La UI consulta automáticamente cada 2,5 s mientras está visible y PENDING, y al
   recuperar conexión/foco. Solo consulta; no reenvía cargos ni inventa aprobaciones.
 
@@ -87,7 +95,7 @@ Contra UAT Sandbox, con adaptadores WEB desde Node y API/DB aisladas: tokenizaci
 APPROVED con descuento y DECLINED con stock físico conservado. No acredita navegador,
 ERROR real ni webhook público real. No se realizaron pagos con dinero real.
 
-Pendiente: E2E visual del flujo actual, webhook HTTPS público, AWS, TLS de DB, permisos
+Pendiente: E2E visual del flujo actual, webhook HTTPS público, configuración AWS/TLS de DB, permisos
 mínimos y controles distribuidos. Rate limiting actual es por proceso; no sustituye
 controles de API Gateway/WAF. Tokenizar/cifrar no reemplaza TLS ni certifica PCI u OWASP.
 Para AWS se debe validar enrutamiento `/api` y cookies; SameSite=None no garantiza

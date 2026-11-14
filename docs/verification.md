@@ -9,20 +9,29 @@ a una certificación de producción ni de seguridad PCI. El proveedor se simula 
 
 | Repositorio | Comando                                                                      | Último resultado medido                                  |
 | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
-| API         | `npm run test:cov`                                                           | 17 suites, 207 pruebas unitarias/HTTP correctas          |
-| API         | `npm run test:integration`                                                   | 3 suites, 40 pruebas PostgreSQL correctas                |
+| API         | `npm run test:cov`                                                           | 19 suites, 224 pruebas unitarias/HTTP correctas          |
+| API         | `npm run test:integration`                                                   | 3 suites, 42 pruebas PostgreSQL correctas                |
 | WEB         | `npm run test:cov`                                                           | 13 suites, 139 pruebas correctas; sin advertencias React |
 | Ambos       | `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run build` | Correctos en sus últimos cambios de código               |
 
-Estos resultados se obtuvieron antes de actualizar esta documentación; no se volvió
-a ejecutar toda la suite por cambios exclusivamente documentales.
+La API se midió de nuevo para Swagger y QA del webhook. PostgreSQL se ejecutó en
+un contenedor desechable con configuración explícita, sin usar RDS ni realizar pagos.
+Las mediciones WEB pertenecen a la iteración anterior. Hubo un fallo inicial de
+inferencia TypeScript, corregido, y timeouts al ejecutar las suites simultáneamente
+en WSL; las ejecuciones finales secuenciales pasaron sin aumentar timeouts.
+
+Se comprobó HTTP 200 por HTTPS en https://dviblid28pd4o.cloudfront.net/.
+Esto verifica acceso a la web, no checkout ni enrutamiento API en AWS. La usuaria
+informa API/RDS desplegados; esta revisión no modificó ni verificó RDS y no envió
+webhooks a producción. El webhook público y la configuración efectiva desplegada
+siguen pendientes de validación operativa autorizada.
 
 | Métrica Jest | API    | WEB    |
 | ------------ | ------ | ------ |
-| Sentencias   | 93,71% | 96,88% |
-| Ramas        | 90,04% | 92,66% |
-| Funciones    | 85,94% | 97,33% |
-| Líneas       | 93,67% | 96,81% |
+| Sentencias   | 94,21% | 96,88% |
+| Ramas        | 90,72% | 92,66% |
+| Funciones    | 87,09% | 97,33% |
+| Líneas       | 94,20% | 96,81% |
 
 Ambos exigen 81% global en las cuatro métricas e incluyen todo `src`. Los reportes
 locales se generan en `coverage/` y no se versionan. El README de cada repositorio

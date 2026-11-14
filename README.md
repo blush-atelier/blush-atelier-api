@@ -97,7 +97,9 @@ o consultar transacciones. Cada pedido conserva sus líneas en `transaction_item
 `payments/domain` decide transiciones con Result; `application` prepara/verifica pagos
 y procesa eventos; `infrastructure` implementa Wompi, HTTP y persistencia. La llamada
 al proveedor queda fuera del bloqueo DB; la confirmación/liberación de todas las líneas
-y la entrega se guardan atómicamente. Duplicados no repiten el movimiento de stock.
+y la entrega se guardan atómicamente. Duplicados no repiten escrituras ni el movimiento de stock. El webhook registra
+JSON con correlación, duración y resultado; excluye payload, firmas y datos del cliente.
+[QA del webhook y consultas SQL de lectura](docs/checkout-testing.md#webhook-qa-automatizado-sin-pagos-ni-rds).
 
 <details>
 <summary>Flujo de checkout y pago Sandbox</summary>
@@ -171,10 +173,10 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **215 pruebas unitarias/HTTP correctas**; las 40 de integración PostgreSQL
-corresponden a la validación anterior y no se ejecutaron para este ajuste de Swagger.
-Cobertura Jest del backend: sentencias **93,78%**, ramas **90,29%**,
-funciones **86,02%** y líneas **93,73%**; umbral obligatorio configurado en 81%.
+Resultado medido: **224 pruebas unitarias/HTTP y 42 de integración PostgreSQL correctas**.
+La integración se ejecutó en un contenedor local desechable, con Wompi simulado y sin acceso a RDS.
+Cobertura Jest del backend: sentencias **94,21%**, ramas **90,72%**,
+funciones **87,09%** y líneas **94,20%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 
@@ -185,11 +187,11 @@ Development es local; staging valida; production será la entrega AWS.
 GitHub Actions configura instalación, formato, lint, typecheck, Jest con cobertura,
 integración PostgreSQL y build. [Pipeline](docs/pipeline.md).
 
-AWS previsto: Lambda + API Gateway y PostgreSQL privado; frontend en S3 + CloudFront.
-Primero se evaluarán costos; no se crean tres infraestructuras completas.
-**URLs públicas de API y Swagger: pendientes de despliegue y verificación.**
-PostgreSQL en Docker y los comandos locales están verificados; el contenedor de la API,
-la primera ejecución de CI remoto y las protecciones de ramas siguen pendientes.
+Despliegue informado: frontend S3/CloudFront, API Docker en AWS y PostgreSQL RDS.
+[Frontend público](https://dviblid28pd4o.cloudfront.net/) respondió HTTP 200 por HTTPS.
+**URL pública de API/Swagger y configuración efectiva de API/RDS: pendientes de verificación.**
+No se realizaron cambios en producción en esta revisión. El webhook público,
+la ejecución de CI remoto y las protecciones de ramas requieren evidencia aparte.
 [Evidencia y pendientes de entrega](docs/verification.md).
 
 ## Wompi Sandbox: configurar y probar
@@ -259,7 +261,7 @@ Verificado contra UAT Sandbox con los adaptadores del frontend y API/PostgreSQL 
 **aislada**: APPROVED (una unidad menos), DECLINED (stock conservado) y PENDING previo.
 No acredita interacción de navegador: el arranque de Chrome fue bloqueado por la herramienta.
 ERROR, timeouts, concurrencia y webhook duplicado están cubiertos con proveedor simulado;
-**webhook público real, revisión visual de esta iteración y AWS permanecen pendientes**.
+**webhook público real, revisión visual de esta iteración y configuración efectiva de AWS permanecen pendientes de verificación**.
 
 Documentación oficial: [tarjetas/JWE](https://docs.wompi.co/docs/colombia/metodos-de-pago/),
 [aceptaciones](https://docs.wompi.co/docs/colombia/tokens-de-aceptacion/) y
