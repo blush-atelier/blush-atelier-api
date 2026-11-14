@@ -85,6 +85,10 @@ Las reservas sin pago vencen en 15 minutos; su liberación se evalúa al cotizar
 o consultar transacciones. Cada pedido conserva sus líneas en `transaction_items`; las tarifas se aplican una sola vez.
 [Decisiones y notas para entrevista](docs/decisions-and-interview-notes.md).
 
+`payments/domain` define el puerto del proveedor y las reglas de confirmación/liberación
+con Result. Son decisiones puras: el adaptador Wompi y su aplicación atómica en DB
+siguen pendientes; esta etapa todavía no procesa pagos.
+
 ![Modelo PostgreSQL implementado: productos, clientes, entregas y transacciones](docs/erd.svg)
 
 Disponibilidad = `stock_on_hand - stock_reserved`. Los importes son centavos:
@@ -103,9 +107,9 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **111 pruebas unitarias/HTTP y 23 de integración correctas**.
-Cobertura Jest del backend: sentencias **97,57%**, ramas **96,41%**,
-funciones **95,68%** y líneas **97,30%**; umbral obligatorio configurado en 81%.
+Resultado medido: **144 pruebas unitarias/HTTP correctas; última validación PostgreSQL: 23 de integración**.
+Cobertura Jest del backend: sentencias **97,64%**, ramas **96,78%**,
+funciones **95,72%** y líneas **97,39%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 

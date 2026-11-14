@@ -82,6 +82,7 @@ Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md
 - [x] Use-case tests cover success and expected failures.
 - [x] API/controller tests cover validation and HTTP mapping.
 - [x] Frontend tests cover form validation, Redux state, loading/error/success.
+- [x] Payment transition policy: 33 domain cases verify identity, exact amounts, final states and duplicate decisions; provider adapter and DB effects remain pending.
 - [ ] Payment adapter tests mock provider; no real payment calls.
 - [ ] Duplicate webhook test.
 - [x] Insufficient stock test.
