@@ -126,20 +126,20 @@ un pedido que ya inició el pago.
 
 ## Casos de fuego
 
-| Caso                                                              | Tipo                         | Resultado esperado                                                         |
-| ----------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------- |
-| Datos vacíos, Luhn inválido, fecha vencida o CVC incompleto       | Manual / Jest                | Error claro; sin crear transacción ni cobrar                               |
-| Resumen y edición de entrega                                      | Manual / Jest                | Datos primero, totales de API y tarjeta después                            |
-| Aprobación / rechazo                                              | Manual Sandbox / integración | Estado verificado y stock según tabla                                      |
-| Doble clic o misma solicitud concurrente                          | Manual / PostgreSQL          | Un cargo y un movimiento de stock por pedido                               |
-| F5 antes de pagar y durante el envío                              | Manual / Jest                | Recupera referencias; pide tarjeta si no se envió, consulta si ya se envió |
-| Corte de red / timeout                                            | Manual / mocks               | No inventa aprobación/rechazo ni inicia otra compra automáticamente        |
-| Precio alterado, cantidad excesiva o carrito parcialmente agotado | HTTP / PostgreSQL            | Error controlado; sin reserva parcial ni cobro                             |
-| Compradores compitiendo por últimas unidades                      | PostgreSQL                   | Sin sobreventa ni stock negativo                                           |
-| Pedido ajeno / sesión vencida / referencia inválida               | Manual / HTTP / Jest         | Rechazo seguro sin exponer datos de otro cliente                           |
-| Webhook falso o duplicado                                         | HTTP / PostgreSQL            | Firma inválida rechazada; duplicado no descuenta otra vez                  |
-| Volver después de APPROVED                                        | Manual / Jest                | Consulta del pedido; sin banner de selección pendiente                     |
-| 320–1920 px, teclado y movimiento reducido                        | Manual pendiente             | Modal, avisos, menús y botones accesibles sin recortes                     |
+| Caso                                                                          | Tipo                         | Resultado esperado                                                         |
+| ----------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------- |
+| Datos vacíos, Luhn inválido, titular numérico, fecha vencida o CVC incompleto | Manual / Jest                | Error claro; sin crear transacción ni cobrar                               |
+| Resumen y edición de entrega                                                  | Manual / Jest                | Datos primero, totales de API y tarjeta después                            |
+| Aprobación / rechazo                                                          | Manual Sandbox / integración | Estado verificado y stock según tabla                                      |
+| Doble clic o misma solicitud concurrente                                      | Manual / PostgreSQL          | Un cargo y un movimiento de stock por pedido                               |
+| F5 antes de pagar y durante el envío                                          | Manual / Jest                | Recupera referencias; pide tarjeta si no se envió, consulta si ya se envió |
+| Corte de red / timeout                                                        | Manual / mocks               | No inventa aprobación/rechazo ni inicia otra compra automáticamente        |
+| Precio alterado, cantidad excesiva o carrito parcialmente agotado             | HTTP / PostgreSQL            | Error controlado; sin reserva parcial ni cobro                             |
+| Compradores compitiendo por últimas unidades                                  | PostgreSQL                   | Sin sobreventa ni stock negativo                                           |
+| Pedido ajeno / sesión vencida / referencia inválida                           | Manual / HTTP / Jest         | Rechazo seguro sin exponer datos de otro cliente                           |
+| Webhook falso o duplicado                                                     | HTTP / PostgreSQL            | Firma inválida rechazada; duplicado no descuenta otra vez                  |
+| Volver después de APPROVED                                                    | Manual / Jest                | Consulta del pedido; sin banner de selección pendiente                     |
+| 320–1920 px, teclado y movimiento reducido                                    | Manual pendiente             | Modal, avisos, menús y botones accesibles sin recortes                     |
 
 Prueba los nueve viewports: 320×568, 375×667, 390×844, 430×932, 768×1024, 1024×768,
 1280×800, 1440×900 y 1920×1080. La versión actual **no tiene validación visual**:
@@ -150,3 +150,19 @@ Para eventos reales hace falta configurar un webhook HTTPS público que llegue a
 proveedor necesita reconciliación por webhook. No repitas cargos a ciegas.
 
 [Resultados medidos y límites](verification.md) · [Comandos de integración](development.md#pruebas-de-integración).
+
+## Repetición después de la revisión manual del 14/11/2026
+
+La usuaria confirmó sesión vencida, aprobación, rechazo, F5/desconexión y bloqueo de
+duplicados/cantidades. Repetir solo los hallazgos corregidos, además de la revisión visual pendiente:
+
+1. En titular, escribe/pega `Ana123 María456`: el campo debe quedar `Ana María`.
+   Números solos no forman un titular válido. Acentos, espacios, apóstrofe y guion son válidos.
+2. Durante PENDING observa varios ciclos automáticos: botones, textos y posiciones
+   permanecen estables. Solo cambia el resultado al confirmarlo el backend.
+3. Al recuperar un PENDING aún no enviado, el resumen/tarjeta no debe cerrarse ni
+   borrar lo escrito por una consulta automática. No repetir cargos para probarlo.
+
+Jest comprueba titular inválido antes de tokenizar, nombres Unicode, identidad de los
+nodos de botones y conservación del paso de edición. La consulta de fondo usa su propio
+indicador y no alterna la fase visual entre idle/resuming.

@@ -72,6 +72,10 @@ su stock desde el navegador. No hay cuenta/historial ni recuperación de la sesi
 - La UI consulta automáticamente cada 2,5 s mientras está visible y PENDING, y al
   recuperar conexión/foco. Solo consulta; no reenvía cargos ni inventa aprobaciones.
 
+El titular se valida con letras Unicode y separadores de nombres; no admite números.
+Esta regla es de formato, no una verificación de identidad bancaria. La consulta
+automática no cambia la fase visual del checkout ni borra campos en edición.
+
 ## Evidencia y límites
 
 Jest/HTTP/PostgreSQL comprueban validación sin eco, sesiones ajenas/vencidas y nueva

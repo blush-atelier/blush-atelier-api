@@ -11,7 +11,7 @@ a una certificación de producción ni de seguridad PCI. El proveedor se simula 
 | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
 | API         | `npm run test:cov`                                                           | 17 suites, 207 pruebas unitarias/HTTP correctas          |
 | API         | `npm run test:integration`                                                   | 3 suites, 40 pruebas PostgreSQL correctas                |
-| WEB         | `npm run test:cov`                                                           | 13 suites, 125 pruebas correctas; sin advertencias React |
+| WEB         | `npm run test:cov`                                                           | 13 suites, 139 pruebas correctas; sin advertencias React |
 | Ambos       | `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run build` | Correctos en sus últimos cambios de código               |
 
 Estos resultados se obtuvieron antes de actualizar esta documentación; no se volvió
@@ -19,10 +19,10 @@ a ejecutar toda la suite por cambios exclusivamente documentales.
 
 | Métrica Jest | API    | WEB    |
 | ------------ | ------ | ------ |
-| Sentencias   | 93,71% | 96,69% |
-| Ramas        | 90,04% | 92,74% |
-| Funciones    | 85,94% | 97,30% |
-| Líneas       | 93,67% | 96,60% |
+| Sentencias   | 93,71% | 96,88% |
+| Ramas        | 90,04% | 92,66% |
+| Funciones    | 85,94% | 97,33% |
+| Líneas       | 93,67% | 96,81% |
 
 Ambos exigen 81% global en las cuatro métricas e incluyen todo `src`. Los reportes
 locales se generan en `coverage/` y no se versionan. El README de cada repositorio
@@ -67,12 +67,28 @@ Con los adaptadores WEB ejecutados desde Node y API/PostgreSQL local aislado:
 No se registraron tarjetas/tokens en archivos de evidencia ni se hicieron pagos con
 dinero real. Estas llamadas **no prueban la interacción de navegador ni un evento real**.
 
+## Pruebas manuales reportadas por la usuaria — 14/11/2026
+
+| Caso                                               | Resultado informado                                                                                |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Sesión vencida y nueva selección                   | OK                                                                                                 |
+| Aprobación y rechazo con tarjeta Sandbox           | OK                                                                                                 |
+| Recarga y desconexión                              | OK                                                                                                 |
+| Doble clic bloqueado y cantidad limitada por stock | OK                                                                                                 |
+| Rechazo de tarjeta con prefijo 6                   | OK; la tienda admite Visa/Mastercard                                                               |
+| Titular con números                                | Hallazgo: corregido con filtro de entrada y validación de dominio; requiere repetir manualmente    |
+| Botones intermitentes durante actualización        | Hallazgo: consulta separada de la fase visual; regresión DOM en Jest, requiere repetir manualmente |
+
+Estos resultados son un reporte de la usuaria, no una inspección de navegador realizada
+por el agente. No acreditan los nueve viewports, otros navegadores ni webhook público.
+
 ## Pendientes y límites
 
 - Inspección visual de este modal/flujo en los nueve viewports y en otros navegadores.
   Las capturas anteriores acreditan únicamente versiones anteriores. El arranque de Chrome
   fue bloqueado por la herramienta; no se declaran nuevas pantallas verificadas.
-- E2E manual en navegador: aprobado/rechazado, F5 durante pago y errores visibles.
+- Repetir manualmente titular sin números y estabilidad de acciones durante varios ciclos
+  PENDING. Los recorridos principales reportados por la usuaria ya están anotados arriba.
 - Webhook HTTPS público y reconciliación real si se pierde el ID del proveedor.
 - AWS, HTTPS/CORS/cookies desplegados, DB privada/TLS/permisos mínimos, URLs públicas,
   controles distribuidos de tráfico, CI remoto y protecciones/promoción de ramas.
@@ -90,22 +106,28 @@ dinero real. Estas llamadas **no prueban la interacción de navegador ni un even
 | ---------------------- | ------ | ---------------------------------------------------------------------------------- |
 | README                 | 5      | Setup, contratos, ERD y secuencia; faltan URLs públicas y clean clone final        |
 | Imágenes y límites UX  | 5      | Imágenes optimizadas y CSS responsive; nueva versión requiere inspección visual    |
-| Onboarding con tarjeta | 20     | Jest + UAT desde adaptadores; falta E2E navegador con aprobado/rechazo/F5          |
+| Onboarding con tarjeta | 20     | Jest + UAT y recorrido manual reportado OK; repetir titular y acciones estables    |
 | API                    | 20     | Unitarias/HTTP, PostgreSQL, UAT aprobado/rechazado y stock; webhook real pendiente |
 | Jest >80% ambos        | 30     | Cuatro métricas >80%; informes medidos arriba                                      |
 | App y API publicadas   | 20     | Pendiente: una EC2 creada no es la app desplegada                                  |
 
 **80 puntos base corresponden al trabajo local y 20 al despliegue.** Más pruebas
-no sustituyen esos 20. Las validaciones visuales/E2E pendientes impiden dar por
-cerrados incluso los 80 locales. El evaluador asigna los puntos, no este documento.
+no sustituyen esos 20. La revisión visual y las dos correcciones pendientes de repetición manual impiden dar por
+cerrados todos los 80 locales. El evaluador asigna los puntos, no este documento.
 
 Extra (hasta 50): seguridad/HTTPS 5, responsive/navegadores 5, CSS 10, código limpio 10,
 hexagonal 10 y ROP 10. Hay implementación local de esos patrones y controles, pero
 HTTPS público, navegadores y revisión final siguen pendientes; no se certifican 100/150.
 La usuaria indica una EC2 en us-east-2; no se verificó infraestructura AWS desde aquí.
 
-Pruebas de cierre: recorrido UI con las tarjetas oficiales aprobada/rechazada; F5
-antes y durante pago; reconexión sin pulsar Actualizar; sesión expirada → nueva selección
-→ nueva cookie; dos compradores compitiendo por stock; doble envío de la misma compra;
-referencia ajena; campos/importe alterados; nueve viewports y navegadores. La guía enlazada
-describe datos y resultados esperados. Después: desplegar, webhook público y repetir E2E.
+El recorrido principal ya está reportado OK por la usuaria. Antes de AWS, repetir
+titular y estabilidad de acciones y completar revisión visual pendiente. Las pruebas
+automáticas cubren stock concurrente, idempotencia, sesiones ajenas e importes alterados.
+Después del despliegue: webhook público y repetir E2E sobre las URLs finales.
+
+Estimación orientativa tras repetir las dos correcciones: unos **70/100 base**
+(API 20 + Jest 30 + onboarding 20) y **20/50 extra defendibles** por hexagonal/ROP:
+**aproximadamente 90/150**. No es puntuación oficial ni garantía. README/UX suman otros
+10 sujetos a revisión final; AWS 20 sigue pendiente; CSS/código limpio 20 dependen del
+evaluador; HTTPS/navegadores 10 requieren comprobación. El despliegue es un entregable
+obligatorio aunque los extras permitan superar 100 en la suma.

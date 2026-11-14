@@ -4,7 +4,7 @@ Backend de la prueba Full Stack: NestJS, TypeScript, PostgreSQL y TypeORM.
 Frontend independiente: [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web).
 Incluye catálogo, carrito de varios productos, cliente, entrega, cotización y una transacción PENDING con reserva atómica de stock.
 La integración Wompi Sandbox está implementada: aprobación y rechazo se comprobaron
-contra UAT mediante adaptadores y API local; faltan E2E en navegador y validación AWS.
+contra UAT mediante adaptadores y API local; la usuaria reportó el recorrido principal correcto; faltan repetir dos correcciones y validar AWS.
 Wompi se usará exclusivamente en Sandbox en todos los ambientes.
 
 ## Ejecutar localmente
@@ -272,3 +272,8 @@ o DECLINED/ERROR 10. PENDING ya reserva unidades; aprobación descuenta el stock
 una sola vez y libera su contador de reserva. La API pública muestra disponible,
 no los contadores internos. La consulta por referencia en WEB también exige la sesión
 activa; no revela pedidos de otros compradores ni reemplaza el carrito.
+
+Pruebas manuales reportadas por la usuaria: sesión vencida, aprobación/rechazo,
+recarga/desconexión y límites de doble clic/stock correctos. Los hallazgos de titular
+numérico y acciones intermitentes se corrigieron en WEB; repetir esos dos casos.
+[Evidencia, pendientes y estimación de rúbrica](docs/verification.md).
