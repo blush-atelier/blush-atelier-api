@@ -50,6 +50,12 @@ El seed carga 20 productos reales (MAC, Too Faced, Bloomshell y Atenea) con prec
 ## Probar con Swagger
 
 Abre [http://localhost:3000/docs](http://localhost:3000/docs).
+En desarrollo se mantienen `/docs` y `/docs-json`. En producción Swagger está
+**desactivado por defecto**: solo `SWAGGER_ENABLED=true` publica `/api/docs` y
+`/api/docs-json`, sin modificar las rutas de negocio. Reinicia la API después de
+cambiar la variable; no habilita Swagger en una instancia ya desplegada.
+La documentación no sustituye la autenticación ni las validaciones del checkout.
+
 Expande un endpoint, pulsa **Try it out** y luego **Execute**. Los productos son públicos; el checkout usa una cookie HttpOnly creada al registrar el cliente.
 
 | Método | Endpoint                               | Función                                            |
@@ -61,7 +67,7 @@ Expande un endpoint, pulsa **Try it out** y luego **Execute**. Los productos son
 | POST   | `/api/transactions`                    | Crear PENDING y reservar con Idempotency-Key       |
 | GET    | `/api/transactions/{id}`               | Reanudar y consultar el estado de la propia compra |
 
-En cada POST usa `X-Checkout-Request: 1`. Swagger muestra la cabecera; registra primero
+En cada POST del comprador usa `X-Checkout-Request: 1` (no aplica al webhook firmado `/api/payments/wompi/events`). Swagger muestra la cabecera; registra primero
 el cliente para que el navegador guarde la cookie. No introduzcas tarjetas en Swagger. La tarjeta se cifra y tokeniza desde el navegador directamente con Wompi.
 [Ejemplos para probar el flujo](docs/checkout-testing.md).
 
@@ -165,9 +171,10 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **207 pruebas unitarias/HTTP y 40 de integración PostgreSQL correctas**.
-Cobertura Jest del backend: sentencias **93,71%**, ramas **90,04%**,
-funciones **85,94%** y líneas **93,67%**; umbral obligatorio configurado en 81%.
+Resultado medido: **215 pruebas unitarias/HTTP correctas**; las 40 de integración PostgreSQL
+corresponden a la validación anterior y no se ejecutaron para este ajuste de Swagger.
+Cobertura Jest del backend: sentencias **93,78%**, ramas **90,29%**,
+funciones **86,02%** y líneas **93,73%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 
