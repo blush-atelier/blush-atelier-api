@@ -3,8 +3,8 @@
 Backend de la prueba Full Stack: NestJS, TypeScript, PostgreSQL y TypeORM.
 Frontend independiente: [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web).
 Incluye catálogo, carrito de varios productos, cliente, entrega, cotización y una transacción PENDING con reserva atómica de stock.
-La integración Wompi Sandbox está implementada para pruebas locales; falta validarla
-con credenciales del comercio y verificar el despliegue AWS.
+La integración Wompi Sandbox está implementada: aprobación y rechazo se comprobaron
+contra UAT mediante adaptadores y API local; faltan E2E en navegador y validación AWS.
 Wompi se usará exclusivamente en Sandbox en todos los ambientes.
 
 ## Ejecutar localmente

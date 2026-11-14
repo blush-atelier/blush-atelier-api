@@ -16,7 +16,7 @@ docker info
 ```
 
 [Documentación oficial de Docker para WSL](https://docs.docker.com/desktop/features/wsl/).
-La ejecución de Docker todavía no se ha verificado en este entorno.
+PostgreSQL Docker y API en WSL están verificados; el contenedor completo de API sigue pendiente.
 
 ## Configuración
 
@@ -28,7 +28,7 @@ para evitar que Compose interprete el carácter como sustitución de variables.
 - `PORT`: puerto HTTP de NestJS; las URLs del README asumen 3000.
 - `FRONTEND_ORIGIN`: origen permitido por CORS; no es la dirección de Swagger.
 - `POSTGRES_HOST=localhost`: la API se conecta desde WSL al puerto publicado por Docker.
-- `POSTGRES_PORT=5432`: puerto local de PostgreSQL.
+- `POSTGRES_PORT=5433`: puerto publicado local; PostgreSQL escucha en 5432 dentro del contenedor.
 - `POSTGRES_DB`: nombre de la base creada al inicializar el volumen.
 - `POSTGRES_SSL=false`: conexión local. La futura conexión de producción exigirá TLS.
 
@@ -61,7 +61,7 @@ npm run local:dev
 ```
 
 - Docker crea la base y conserva sus archivos en el volumen `postgres_data`.
-- La migración crea `products` con restricciones de precio y stock.
+- Las cinco migraciones crean el modelo de productos, clientes, entregas, pedidos/líneas y trazabilidad de pagos.
 - El seed agrega veinte productos de marcas reales y dos ficticios heredados sin sobrescribir precios o inventario existentes.
 - NestJS sirve la API en el puerto configurado; deja esa terminal abierta.
 - Los comandos local:* descubren el contenedor y usan su IP solo para ese proceso. No editan .env.
@@ -78,7 +78,7 @@ Detener sin eliminar los datos:
 docker compose down
 ```
 
-Para el flujo nuevo: [cliente → entrega → cotización → PENDING](checkout-testing.md).
+Para el flujo nuevo: [datos → resumen/tarjeta → pago y verificación](checkout-testing.md).
 
 ## Swagger y consultas manuales
 
@@ -118,7 +118,7 @@ Para integración, primero levanta el servicio `db`. Crea una base separada **un
 
 ```bash
 docker compose exec db sh -c 'createdb -U "$POSTGRES_USER" "${POSTGRES_DB}_test"'
-POSTGRES_DB=blush_atelier_test npm run test:integration
+NODE_ENV=test WOMPI_ENABLED=false POSTGRES_SSL=false POSTGRES_DB=blush_atelier_test npm run test:integration
 ```
 
 El ejemplo supone `POSTGRES_DB=blush_atelier` en `.env`; adapta el nombre si elegiste otro.
