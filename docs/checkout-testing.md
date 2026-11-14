@@ -29,7 +29,10 @@ Swagger: http://localhost:3000/docs. Usa siempre `localhost` y el mismo navegado
    obtener un resultado verificado.
 6. Comprueba resultado y referencia. Vuelve a **Tienda** o entra al producto desde
    su nombre en el pedido para consultar stock actualizado.
-7. En **Mi pedido**, consulta una referencia `BA-UUID` de la sesión activa. No debe
+7. El resultado se consulta automáticamente cada 2,5 segundos mientras PENDING está
+   visible, también fuera de la pantalla del pedido, y al reconectar/recuperar foco.
+   No necesitas pulsar Actualizar.
+8. En **Mi pedido**, consulta una referencia `BA-UUID` de la sesión activa. No debe
    cambiar el carrito ni revelar pedidos de otra sesión. Un pedido registrado ofrece
    consultar estado; no muestra «Tu selección sigue aquí» como carrito pendiente.
 
@@ -48,8 +51,9 @@ las otras tarjetas probadas fueron rechazadas al tokenizar. ERROR se cubre con m
 
 **No ejecutes POST /api/customers si ya compraste desde la UI:** reemplazaría la cookie
 con otra sesión. Swagger utiliza la cookie HttpOnly existente; no la copies a Authorize
-ni localStorage. La sesión invitada dura una hora; no existe recuperación después de
-vencer ni una cuenta con historial de todas las compras.
+ni localStorage. La sesión invitada dura una hora. Si vence, **Volver a comprar** limpia referencias
+antiguas; agrega productos y completa de nuevo tus datos para obtener otra cookie.
+Esto no renueva el acceso al pedido anterior ni crea una cuenta con historial.
 
 1. Obtén el UUID de la respuesta POST `/api/transactions` en Network del navegador;
    esa respuesta muestra PENDING antes de enviar el pago. La referencia es `BA-UUID`.

@@ -1,11 +1,23 @@
 flowchart LR
-    HTTP[HTTP y Swagger] --> Controllers[Controladores NestJS]
-    Controllers --> UC[Casos de uso con Result]
-    UC --> Models[Dominio: cliente, entrega, precio y stock]
-    UC --> Ports[Puertos: repositorios, runtime y unidad de trabajo]
-    Adapters[Adaptadores TypeORM y crypto] -. implementan .-> Ports
-    Adapters --> DB[(PostgreSQL)]
-    Wiring[Modulos NestJS: DI por tokens] -. conectan .-> UC
-    Wiring -. conectan .-> Adapters
-    Guard[Guard de sesion] --> Auth[AuthenticateCheckout]
-    Auth --> Ports
+    subgraph WEB[blush-atelier-web]
+        UI[React y Redux: estado seguro] --> WA[Casos de uso de checkout]
+        WA --> WP[Puertos de dominio y Result]
+        HTTP[Adaptador HTTP] -. implementa .-> WP
+        CARD[Adaptador Web Crypto JWE] -. implementa .-> WP
+        LOCAL[Persistencia: solo referencias] -. implementa .-> WP
+        SYNC[Seguimiento automatico PENDING] --> WA
+    end
+    subgraph API[blush-atelier-api]
+        CTRL[Controladores NestJS y guard de sesion] --> UC[Casos de uso con Result]
+        UC --> DOMAIN[Politicas puras de precio, stock y pago]
+        UC --> PORTS[Puertos: repositorios, UoW y pasarela]
+        ORM[Adaptadores TypeORM] -. implementan .-> PORTS
+        WOMPI[Adaptador Wompi Sandbox] -. implementa .-> PORTS
+        DI[Modulos NestJS: DI por tokens] -. conectan .-> UC
+        DI -. conectan .-> ORM
+        DI -. conectan .-> WOMPI
+        ORM --> DB[(PostgreSQL)]
+    end
+    HTTP --> CTRL
+    CARD --> PROVIDER[Wompi Sandbox: tokenizacion HTTPS]
+    WOMPI --> PROVIDER

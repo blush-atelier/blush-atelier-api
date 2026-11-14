@@ -1,27 +1,45 @@
 sequenceDiagram
-    participant F as Frontend o Swagger
-    participant A as API y casos de uso
+    participant F as React y casos de uso
+    participant A as API NestJS
     participant D as PostgreSQL
     participant W as Wompi Sandbox
-    F->>A: Registrar cliente y entrega (sin tarjeta)
-    A->>D: Guardar contacto, direccion y hash de sesion
+    F->>A: Registrar cliente y entrega, sin tarjeta
+    A->>D: Contacto, direccion y hash de sesion
     A-->>F: IDs y cookie HttpOnly
-    F->>A: Cotizar producto y cantidad
-    A-->>F: Importe + base + envio (sin reservar)
-    F->>A: Crear transaccion con Idempotency-Key y total mostrado
-    A->>D: BEGIN: bloquear solicitud/producto/entrega
-    A->>D: Recalcular, reservar stock y crear PENDING
-    D-->>A: COMMIT
-    A-->>F: Referencia backend y vencimiento de reserva
-    Note over F,W: Desde aqui: integracion futura, todavia no implementada
-    F->>W: Tarjeta directamente al proveedor por HTTPS
-    W-->>F: Token de tarjeta
-    F->>A: Iniciar pago con token, nunca PAN/CVV
-    A->>D: Guardar intento y marcar pago iniciado antes de llamada externa
-    A->>W: Solicitar pago Sandbox
-    W-->>A: Resultado o timeout
-    W->>A: Webhook autenticado
-    A->>W: Consultar y verificar estado, importe y referencia
-    A->>D: BEGIN: actualizar estado y confirmar/liberar reserva
-    D-->>A: COMMIT sin repetir efectos
-    F->>A: Consultar estado backend y stock actualizado
+    F->>A: Cotizar carrito
+    A-->>F: Productos + tarifa base + envio, sin reservar
+    Note over F: 01 Datos, 02 Resumen y tarjeta en Backdrop
+    F->>A: GET configuracion publica de tarjeta
+    A->>W: Llave publica JWE y condiciones de aceptacion
+    A-->>F: Configuracion publica, sin secretos
+    F->>W: POST tokens/cards, JWE por HTTPS
+    W-->>F: Token efimero, fuera de Redux y localStorage
+    F->>A: POST transactions, total mostrado e Idempotency-Key
+    A->>D: Transaccion atomica: reservar lineas y crear PENDING
+    A-->>F: UUID y referencia PENDING
+    Note over F: 03 Procesando pago
+    F->>A: POST transactions/id/payments, token y aceptaciones
+    A->>D: Confirmar payment_submitted_at bajo bloqueo
+    Note over A,W: Llamada remota fuera del bloqueo DB
+    A->>W: POST transactions, firma e importe del servidor
+    alt Respuesta valida
+        W-->>A: ID y estado del proveedor
+        A->>D: Validar y persistir resultado, stock y entrega atomicamente
+        A-->>F: Solicitud aceptada
+    else Timeout o resultado desconocido
+        A-->>F: Error controlado, conservar PENDING y reserva
+    end
+    loop Mientras PENDING y visible, cada 2.5 s y al reconectar
+        F->>A: POST payment-verification
+        A->>W: GET transaccion con llave privada
+        W-->>A: Estado, referencia, importe y moneda
+        A->>D: Aplicar transicion verificada sin repetir efectos
+        F->>A: GET pedido y productos actualizados
+    end
+    opt Webhook HTTPS publico configurado
+        W->>A: Evento firmado
+        A->>A: Validar checksum
+        A->>W: Corroborar transaccion con API privada
+        A->>D: Confirmar o liberar stock y entrega una sola vez
+    end
+    Note over F: Resultado final y regreso al producto o tienda
