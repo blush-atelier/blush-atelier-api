@@ -1,43 +1,87 @@
-# Probar el checkout pendiente en Swagger
+# Probar checkout, pagos y stock
 
 ## Arranque local
 
-Con Docker db saludable y .env ya completo:
+Con `.env` completo y Wompi Sandbox configurado según README:
 
 ```bash
-npm run local:migrate
-npm run local:seed
-npm run local:dev
+docker compose up -d db
+NODE_ENV=development POSTGRES_SSL=false npm run local:migrate
+NODE_ENV=development POSTGRES_SSL=false npm run local:seed
+NODE_ENV=development POSTGRES_SSL=false npm run local:dev
 ```
 
-Abre http://localhost:3000/docs (o 127.0.0.1, conservando ese mismo hostname para todo).
-Si ya hay una API ejecutándose en 3000, detén ese proceso antes de arrancar otro.
-Los comandos local:* están pensados para Docker Engine/Snap dentro de WSL; en una
-instalación que permita conectar a POSTGRES_HOST/POSTGRES_PORT de .env también puedes
-usar los comandos migration:run, seed y start:dev originales.
+Conserva la API que ya esté iniciada; no arranques otra en el mismo puerto.
+Frontend: `npm run dev` en `blush-atelier-web`, http://localhost:5173.
+Swagger: http://localhost:3000/docs. Usa siempre `localhost` y el mismo navegador.
 
-En todos los POST completa X-Checkout-Request con `1`. Es una protección frente a
-peticiones de otros sitios, no una contraseña. La cookie se recibe automáticamente
-en el navegador; no la copies en la ventana Authorize ni en localStorage.
+## Prueba completa desde la tienda
 
-## 1. Crear comprador
+1. Anota `availableStock` con GET `/api/products/{productId}`.
+2. Agrega uno o varios productos; revisa cantidades en el carrito.
+3. **Pagar con tarjeta de crédito** abre **01 Tus datos**. Completa contacto y
+   entrega; Departamento habilita Ciudad. Pulsa **Completar pago**.
+4. **02 Resumen y tarjeta** muestra productos, tarifa base y envío en el Backdrop.
+   Completa tarjeta, cuotas y las dos aceptaciones de Wompi. El logo aparece dentro
+   del campo de número al reconocer Visa/Mastercard.
+5. **Registrar pago** tokeniza directamente con Wompi, crea PENDING antes del cargo
+   y activa **03 Procesando pago**. Este paso es de UI: en la BD sigue PENDING hasta
+   obtener un resultado verificado.
+6. Comprueba resultado y referencia. Vuelve a **Tienda** o entra al producto desde
+   su nombre en el pedido para consultar stock actualizado.
+7. En **Mi pedido**, consulta una referencia `BA-UUID` de la sesión activa. No debe
+   cambiar el carrito ni revelar pedidos de otra sesión. Un pedido registrado ofrece
+   consultar estado; no muestra «Tu selección sigue aquí» como carrito pendiente.
 
-POST /api/customers:
+Datos exclusivamente de Sandbox, comprobados en UAT mediante adaptadores y API local:
 
-```json
-{
-  "fullName": "Ana Prueba",
-  "email": "ana@example.com",
-  "phone": "+573001234567"
-}
-```
+| Resultado | Número              | Titular    | Vencimiento | CVC | Cuotas |
+| --------- | ------------------- | ---------- | ----------- | --- | ------ |
+| APPROVED  | 4242 4242 4242 4242 | Ana Prueba | 12/30       | 123 | 1      |
+| DECLINED  | 4111 1111 1111 1111 | Ana Prueba | 12/30       | 123 | 1      |
 
-Respuesta 201 con id. El navegador guarda checkout_session como HttpOnly durante una hora.
-Registrar otro comprador reemplaza la sesión actual; no podrás consultar la compra del anterior.
+[Fuente oficial](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/).
+No uses tarjetas reales. No hay un tercer número confirmado para ERROR en UAT:
+las otras tarjetas probadas fueron rechazadas al tokenizar. ERROR se cubre con mocks.
 
-## 2. Crear entrega
+## Verificar una compra de la UI desde Swagger
 
-POST /api/deliveries:
+**No ejecutes POST /api/customers si ya compraste desde la UI:** reemplazaría la cookie
+con otra sesión. Swagger utiliza la cookie HttpOnly existente; no la copies a Authorize
+ni localStorage. La sesión invitada dura una hora; no existe recuperación después de
+vencer ni una cuenta con historial de todas las compras.
+
+1. Obtén el UUID de la respuesta POST `/api/transactions` en Network del navegador;
+   esa respuesta muestra PENDING antes de enviar el pago. La referencia es `BA-UUID`.
+2. GET `/api/transactions/{transactionId}` consulta el estado guardado.
+3. POST `/api/transactions/{transactionId}/payment-verification` con cuerpo `{}` y
+   cabecera `X-Checkout-Request: 1` consulta Wompi desde el servidor y aplica el resultado.
+4. Repite GET de transacción y GET `/api/products/{productId}`.
+
+No existe una operación del comprador para imponer APPROVED. Tampoco envíes tarjeta,
+precio o status a la verificación: los campos adicionales se rechazan.
+
+Ejemplo aislado: 10 unidades iniciales, compra de 2, sin otras compras concurrentes:
+
+| Momento          | Stock físico | Reservado | availableStock |
+| ---------------- | ------------ | --------- | -------------- |
+| Inicial          | 10           | 0         | 10             |
+| PENDING          | 10           | 2         | 8              |
+| APPROVED         | 8            | 0         | 8              |
+| DECLINED / ERROR | 10           | 0         | 10             |
+
+La API pública muestra `availableStock`, no los contadores internos. APPROVED deja
+la entrega READY. Un timeout no prueba rechazo: conserva PENDING y reserva hasta
+reconciliar. Un pago enviado no se libera automáticamente al cumplir 15 minutos.
+
+## Probar solo la API: preparación manual sin cobro
+
+Hazlo en una sesión de prueba separada de tu compra de UI. En cada POST del comprador
+usa `X-Checkout-Request: 1`.
+
+1. POST `/api/customers`: `{"fullName":"Ana Prueba","email":"ana@example.com","phone":"+573001234567"}`.
+   Devuelve 201 y crea la cookie HttpOnly.
+2. POST `/api/deliveries`:
 
 ```json
 {
@@ -50,108 +94,55 @@ POST /api/deliveries:
 }
 ```
 
-Respuesta 201 con id. Copia ese id como deliveryId para los próximos pasos.
-No se recibe customerId: el backend lo obtiene de la sesión.
-
-## 3. Cotizar
-
-POST /api/checkout/quote (reemplaza DELIVERY_UUID por el UUID anterior):
+3. Copia el UUID de entrega y usa un producto real de GET `/api/products` en
+   POST `/api/checkout/quote`:
 
 ```json
 {
   "productId": "11111111-1111-4111-8111-111111111111",
   "quantity": 1,
-  "deliveryId": "DELIVERY_UUID"
+  "deliveryId": "REEMPLAZAR_POR_UUID_DE_ENTREGA"
 }
 ```
 
-Respuesta 200 con importes como strings. Con el precio del seed y las tarifas locales
-por defecto: producto 89.900 COP + base 5.000 COP + envío 10.000 COP = 104.900 COP;
-totalMinor será `"10490000"`. Si cambiaste precio o tarifas, usa el total que realmente recibas.
-Cotizar no reserva ni cobra.
+4. POST `/api/transactions` con el mismo cuerpo más `expectedTotalMinor` tomado de
+   `totalMinor` de la cotización. Agrega `Idempotency-Key: checkout-request-0001`.
+   Usa una clave nueva para cada compra independiente, pero la misma en sus reintentos.
+5. La respuesta 201 es PENDING. Cotizar no reserva; crear PENDING sí. Repetir clave y
+   contenido devuelve el mismo pedido; cambiar contenido con esa clave falla.
 
-Las variables opcionales BASE_FEE_MINOR y DELIVERY_FEE_MINOR controlan las tarifas en
-centavos. En local hay valores de demostración; producción exige configuración explícita.
-No existe una regla geográfica distinta de envío en esta etapa: se usa tarifa fija para Colombia.
+Para varias líneas agrega `items: [{productId, quantity}, ...]` y conserva productId/
+quantity de la primera línea. Las tarifas se cobran una vez; falta de stock en una
+línea revierte toda la reserva. Una entrega solo se usa en una transacción.
 
-## 4. Crear PENDING
+El cargo usa POST `/api/transactions/{id}/payments`: recibe únicamente token,
+cuotas y aceptaciones. Prueba la captura desde la UI; no introduzcas PAN/CVC en Swagger.
+La ruta anterior `payment-session` es de compatibilidad; no mezcles ambos flujos para
+un pedido que ya inició el pago.
 
-POST /api/transactions. Además de X-Checkout-Request, usa Idempotency-Key:
-`checkout-request-0001` (entre 8 y 128 caracteres: letras, números, guion o guion bajo).
+## Casos de fuego
 
-```json
-{
-  "productId": "11111111-1111-4111-8111-111111111111",
-  "quantity": 1,
-  "deliveryId": "DELIVERY_UUID",
-  "expectedTotalMinor": "10490000"
-}
-```
+| Caso                                                              | Tipo                         | Resultado esperado                                                         |
+| ----------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------- |
+| Datos vacíos, Luhn inválido, fecha vencida o CVC incompleto       | Manual / Jest                | Error claro; sin crear transacción ni cobrar                               |
+| Resumen y edición de entrega                                      | Manual / Jest                | Datos primero, totales de API y tarjeta después                            |
+| Aprobación / rechazo                                              | Manual Sandbox / integración | Estado verificado y stock según tabla                                      |
+| Doble clic o misma solicitud concurrente                          | Manual / PostgreSQL          | Un cargo y un movimiento de stock por pedido                               |
+| F5 antes de pagar y durante el envío                              | Manual / Jest                | Recupera referencias; pide tarjeta si no se envió, consulta si ya se envió |
+| Corte de red / timeout                                            | Manual / mocks               | No inventa aprobación/rechazo ni inicia otra compra automáticamente        |
+| Precio alterado, cantidad excesiva o carrito parcialmente agotado | HTTP / PostgreSQL            | Error controlado; sin reserva parcial ni cobro                             |
+| Compradores compitiendo por últimas unidades                      | PostgreSQL                   | Sin sobreventa ni stock negativo                                           |
+| Pedido ajeno / sesión vencida / referencia inválida               | Manual / HTTP / Jest         | Rechazo seguro sin exponer datos de otro cliente                           |
+| Webhook falso o duplicado                                         | HTTP / PostgreSQL            | Firma inválida rechazada; duplicado no descuenta otra vez                  |
+| Volver después de APPROVED                                        | Manual / Jest                | Consulta del pedido; sin banner de selección pendiente                     |
+| 320–1920 px, teclado y movimiento reducido                        | Manual pendiente             | Modal, avisos, menús y botones accesibles sin recortes                     |
 
-Respuesta 201 con id, reference, status PENDING, importes y vencimiento de la reserva.
-Copia el id. **No significa pago aprobado**: todavía no hay integración de cobro.
-Repetir la misma clave y contenido devuelve la misma transacción sin reservar otra vez.
-Cambiar contenido con esa clave devuelve 409 IdempotencyConflict.
-Una entrega no puede asignarse a dos transacciones; para otra compra crea una nueva entrega.
+Prueba los nueve viewports: 320×568, 375×667, 390×844, 430×932, 768×1024, 1024×768,
+1280×800, 1440×900 y 1920×1080. La versión actual **no tiene validación visual**:
+la herramienta bloqueó iniciar Chrome. Jest no sustituye esta revisión.
 
-## 5. Consultar y verificar stock
+Para eventos reales hace falta configurar un webhook HTTPS público que llegue a
+`/api/payments/wompi/events`; localhost no sirve. Una respuesta perdida sin ID del
+proveedor necesita reconciliación por webhook. No repitas cargos a ciegas.
 
-- GET /api/transactions/{id}: debe devolver PENDING dentro de la misma sesión.
-- Refrescar Swagger conserva la cookie; vuelve a consultar el id para reanudar.
-- GET /api/products/{productId}: baja availableStock por la reserva, no stock físico.
-- Al consultar/cotizar/crear para el producto después de 15 minutos, una reserva sin
-  pago iniciado pasa a EXPIRED y se libera una sola vez. No hay cron en esta etapa.
-
-Errores: 400 entrada inválida; 401 sesión ausente/vencida; 404 recurso ajeno o inexistente;
-409 stock insuficiente, total cambiado, clave reutilizada o entrega ya usada;
-422 importe fuera de rango; 429 límite de peticiones; 503 almacenamiento no disponible.
-El código en el JSON distingue cada fallo; los mensajes no muestran datos internos.
-
-## Integración futura con el frontend
-
-Cada llamada del frontend debe enviar la cookie:
-
-```typescript
-fetch(`${apiUrl}/api/checkout/quote`, {
-  method: 'POST',
-  credentials: 'include',
-  headers: { 'Content-Type': 'application/json', 'X-Checkout-Request': '1' },
-  body: JSON.stringify({ productId, quantity: 1, deliveryId }),
-});
-```
-
-Para transactions agrega Idempotency-Key; consérvala por intento lógico para reintentar
-tras un fallo de red. Guarda solo IDs, clave de solicitud y pasos seguros; ninguna tarjeta,
-cookie, token Wompi o dato personal en Redux persistido/localStorage. Reanuda leyendo el
-estado backend. La sesión dura una hora; su recuperación tras vencer aún no está implementada.
-
-En AWS se recomienda enrutar /api/* al API Gateway desde la misma distribución CloudFront
-del frontend, reenviando cookie y cabeceras y desactivando caché de las respuestas de checkout.
-Así no dependemos de que el navegador permita cookies de terceros. SameSite=None/Secure
-por sí solo no garantiza que un navegador acepte cookies entre sitios distintos.
-No se ha desplegado ni verificado esa configuración todavía.
-
-Lee [payment-security.md](payment-security.md) antes de implementar el formulario de tarjeta.
-
-## Carrito de varios productos
-
-Los mismos endpoints de cotización y PENDING admiten `items` (1–50 UUID distintos).
-Conserva productId y quantity de la primera línea para compatibilidad:
-
-```json
-{
-  "productId": "11111111-1111-4111-8111-111111111111",
-  "quantity": 1,
-  "items": [
-    { "productId": "11111111-1111-4111-8111-111111111111", "quantity": 1 },
-    { "productId": "22222222-2222-4222-8222-222222222222", "quantity": 2 }
-  ],
-  "deliveryId": "DELIVERY_UUID"
-}
-```
-
-Para crear la reserva añade expectedTotalMinor de la cotización y la cabecera
-Idempotency-Key. No envíes precios por línea: se calculan en servidor. La respuesta
-múltiple incluye items con precio unitario y subtotal de cada línea; productAmountMinor
-es el agregado y las tarifas se cobran una vez. Cualquier falta de stock revierte
-el pedido completo. Un timeout se reintenta con la misma clave y las mismas líneas.
+[Resultados medidos y límites](verification.md) · [Comandos de integración](development.md#pruebas-de-integración).

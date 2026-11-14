@@ -1,116 +1,79 @@
-# Verificación del backend: checkout PENDING
+# Verificación actual
 
-Verificado el 13 de noviembre de 2026 en WSL Ubuntu, Node 22.23.3 y PostgreSQL 17.12
-(Docker). Alcance: productos, cliente invitado, entrega, cotización y reserva de stock.
-El frontend tiene evidencia propia en su repositorio; aquí se verifica el backend. Los pagos Wompi siguen pendientes.
+Últimas mediciones locales registradas en esta iteración, WSL / Node 22. No equivalen
+a una certificación de producción ni de seguridad PCI. El proveedor se simula en Jest.
 
-## Comandos y resultados
+## Comandos y evidencia
 
-| Comando                  | Resultado                                                 |
-| ------------------------ | --------------------------------------------------------- |
-| npm ci                   | Instalación reproducible correcta                         |
-| npm run format:check     | Correcto                                                  |
-| npm run lint             | Correcto                                                  |
-| npm run typecheck        | Correcto                                                  |
-| npm run test:cov         | 13 suites y 111 pruebas unitarias/HTTP correctas          |
-| npm run test:integration | 2 suites y 23 pruebas correctas sobre PostgreSQL real     |
-| npm run build            | Correcto; genera dist/                                    |
-| npm run local:migrate    | Nueva migración aplicada conservando productos existentes |
-| npm run local:dev        | Arranque correcto; rutas nuevas registradas               |
+| Repositorio | Comando                                                                      | Último resultado medido                                  |
+| ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| API         | `npm run test:cov`                                                           | 17 suites, 206 pruebas unitarias/HTTP correctas          |
+| API         | `npm run test:integration`                                                   | 3 suites, 39 pruebas PostgreSQL correctas                |
+| WEB         | `npm run test:cov`                                                           | 12 suites, 118 pruebas correctas; sin advertencias React |
+| Ambos       | `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run build` | Correctos en sus últimos cambios de código               |
 
-La integración se ejecutó en una base local desechable con sufijo _test, usando
-variables temporales y el contenedor Docker. Las suites limpian solo esa base de pruebas;
-no revierten las migraciones ni las tablas de la base de trabajo.
+Estos resultados se obtuvieron antes de actualizar esta documentación; no se volvió
+a ejecutar toda la suite por cambios exclusivamente documentales.
 
-## Cobertura Jest medida
+| Métrica Jest | API    | WEB    |
+| ------------ | ------ | ------ |
+| Sentencias   | 93,71% | 96,54% |
+| Ramas        | 90,04% | 92,36% |
+| Funciones    | 85,94% | 97,19% |
+| Líneas       | 93,67% | 96,62% |
 
-| Métrica    | Cobertura |
-| ---------- | --------- |
-| Sentencias | 97.57%    |
-| Ramas      | 96.41%    |
-| Funciones  | 95.68%    |
-| Líneas     | 97.30%    |
+Ambos exigen 81% global en las cuatro métricas e incluyen todo `src`. Los reportes
+locales se generan en `coverage/` y no se versionan. El README de cada repositorio
+contiene sus comandos y mediciones.
 
-Jest incluye src completo y exige 81% global en las cuatro métricas. Reportes locales:
-coverage/coverage-summary.json y coverage/lcov.info (ignorados por Git). Los scripts
-operativos de desarrollo están fuera de src; local:migrate y local:dev se comprobaron
-mediante ejecución real. La cobertura frontend se mide en su repositorio.
+## Qué se comprobó
 
-## Casos comprobados
+- DTO, propiedad de sesión, cookie HttpOnly, cabecera anti-CSRF, CORS, límites de cuerpo,
+  cabeceras de seguridad, rate limiting por proceso y errores sin eco de datos sensibles.
+- Dinero BIGINT/bigint/string, cotización de una o varias líneas y tarifas una sola vez.
+- PENDING antes del cargo, reserva atómica, idempotencia, expiración de intentos no enviados,
+  competencia por stock y rollback completo ante fallos de persistencia.
+- Envío directo con token: ocho solicitudes concurrentes generan una llamada al proveedor
+  simulado y un único movimiento de stock. `payment_submitted_at` se confirma antes del POST.
+- Aprobación confirma stock y entrega READY; rechazo/error liberan reserva; timeout conserva
+  incertidumbre. Identidad, referencia, importe y moneda del proveedor se verifican.
+- Webhook auténtico/idempotente y carrera con verificación HTTP, usando eventos simulados.
+- WEB: entrega → resumen/tarjeta → paso 03; validaciones, marca detectada dentro del campo,
+  avisos superiores, recuperación, consulta por referencia sin alterar carrito y eliminación
+  del banner de selección pendiente después de registrar el pedido.
+- JWE interoperable RSA-OAEP-256 + A256GCM; token y tarjeta fuera de Redux/localStorage.
+- Cinco migraciones y seed de 22 productos. La migración de envío de tarjeta se aplicó
+  también en la BD local de trabajo sin reiniciar inventario.
 
-- Validación/normalización de cliente y dirección, cantidades e importes BIGINT exactos.
-- Cookie HttpOnly; solo hash y vencimiento en DB. Un hash robado no funciona como cookie.
-- Propiedad de entrega/transacción; una sesión no lee el estado de otra.
-- Campos de tarjeta rechazados sin persistencia ni eco; errores de JSON y cuerpos >16 KB
-  tampoco reflejan sus valores. Excepciones inesperadas registran solo diagnóstico fijo.
-- Cabecera anti-CSRF, CORS con credenciales y origen permitido, Cache-Control no-store.
-- Rate limit comprobado en el AppModule real (HTTP 429); es memoria por proceso.
-- Cotización sin reservar; total alterado rechazado; estado APPROVED no aceptado desde JSON.
-- Ocho reintentos concurrentes: una transacción y una reserva.
-- Ocho compradores, tres unidades: tres reservas, cinco rechazos y cero sobreventa.
-- Una entrega no se asigna dos veces; precio/cantidad y snapshot del total controlados por servidor.
-- Una inserción forzada a fallar revierte también la reserva.
-- Reserva vencida sin pago: EXPIRED y liberación una vez; con pago iniciado, no se libera por tiempo.
-- Consulta protegida permite reanudar dentro de la sesión; sesión expirada devuelve 401.
-- Migración y rollback/reaplicación comprobados solo en base desechable.
+Las suites PostgreSQL limpian y revierten únicamente una base local desechable con
+sufijo `_test`, nunca la base de trabajo. Las pruebas con proveedor real utilizaron
+otra base local aislada con sufijo `_sandbox_test`.
 
-Swagger /docs respondió HTTP 200 desde Windows. /docs-json publica versión 0.2.0 con
-los endpoints nuevos; GET /api/products responde 200 y no-store. La API local quedó
-arrancada con local:dev para probarla. Son URLs locales, no despliegue público.
+## Evidencia contra Wompi UAT Sandbox
 
-## Límites y pendientes
+Con los adaptadores WEB ejecutados desde Node y API/PostgreSQL local aislado:
 
-- Confirmación de pago, descuento definitivo de stock, rechazos Wompi, webhook y
-  reconciliación: siguiente etapa. No se enviaron solicitudes a la API de pagos Wompi.
-- La reserva vence en 15 minutos, pero su liberación es perezosa en cotizar/crear/consultar
-  transacciones; no hay cron. La sesión invitada vence en una hora y no tiene recuperación
-  posterior implementada. Una entrega usada requiere otra entrega para una nueva compra.
-- El catálogo muestra el stock persistido; reservas vencidas aún no evaluadas pueden
-  permanecer reflejadas hasta una operación de checkout del producto.
-- PostgreSQL en Docker está comprobado; build/arranque del contenedor API siguen pendientes.
-- CI remoto, protecciones de ramas, HTTPS de producción, almacenamiento de secretos AWS,
-  controles distribuidos de tráfico y cookies/CloudFront en producción siguen pendientes.
+- Tokenización cifrada aceptada por UAT.
+- APPROVED: PENDING previo, reserva confirmada y una unidad menos de stock.
+- DECLINED: PENDING previo, reserva liberada y stock físico conservado.
+- Otras tarjetas probadas se rechazaron al tokenizar; no acreditan ERROR de pago en UAT.
 
-## Dependencias agregadas
+No se registraron tarjetas/tokens en archivos de evidencia ni se hicieron pagos con
+dinero real. Estas llamadas **no prueban la interacción de navegador ni un evento real**.
 
-- class-validator: DTO con tipos, formato y límites; rechaza campos extra mediante ValidationPipe.
-- class-transformer: transforma/normaliza el email antes de la validación.
-- @nestjs/throttler: limita peticiones; no sustituye controles de API Gateway/WAF al escalar.
-- Node crypto y child_process ya vienen con Node; no son paquetes nuevos.
+## Pendientes y límites
 
-npm ci reporta 19 avisos de auditoría: 7 bajos y 12 moderados; ninguno alto o crítico.
-Persisten en las cadenas de Jest/deepmerge y TypeORM/ESLint/glob/minimatch. No se aplicó
---force ni se afirma que no existan vulnerabilidades. Deben revisarse actualizaciones
-compatibles antes de entrega. Los resultados de cobertura no certifican seguridad PCI.
+- Inspección visual de este modal/flujo en los nueve viewports y en otros navegadores.
+  Las capturas anteriores acreditan únicamente versiones anteriores. El arranque de Chrome
+  fue bloqueado por la herramienta; no se declaran nuevas pantallas verificadas.
+- E2E manual en navegador: aprobado/rechazado, F5 durante pago y errores visibles.
+- Webhook HTTPS público y reconciliación real si se pierde el ID del proveedor.
+- AWS, HTTPS/CORS/cookies desplegados, DB privada/TLS/permisos mínimos, URLs públicas,
+  controles distribuidos de tráfico, CI remoto y protecciones/promoción de ramas.
+- Arranque del contenedor completo de API; API WSL + PostgreSQL Docker sí se comprobó.
+- Reservas no iniciadas: vencen a los 15 minutos; liberación perezosa al cotizar/crear/
+  consultar transacciones, sin cron. Intentos enviados no se liberan solo por tiempo.
+- Sesión invitada de una hora, sin recuperación posterior ni historial entre sesiones.
+- El catálogo puede reflejar una reserva vencida hasta evaluar su expiración en checkout.
 
-## Ampliación de catálogo y UI — 13/11/2026
-
-Se ejecutó `POSTGRES_SSL=false npm run local:seed` con NODE_ENV=development y la IP
-obtenida del contenedor Docker local: ahora hay diez productos (ocho de marcas reales).
-Los importes e imágenes tienen procedencia en las notas de entrevista; stock ficticio.
-No se borraron ni reiniciaron los productos o reservas de la base de trabajo.
-
-Se volvieron a ejecutar las 108 pruebas unitarias/HTTP y 17 de integración, estas últimas
-en la base local separada con sufijo `_test`. La base desechable se conservó; sus tablas
-se modificaron/revirtieron solo dentro de esa base. La reserva real realizada desde la UI
-se hizo en la BD de desarrollo y aparta una unidad MAC durante 15 minutos, sin pago.
-El frontend reportó 70 pruebas, 97.28% líneas y 96.36% ramas; ver su README para todas las métricas.
-AWS no se modificó ni se verificó desde este cambio.
-
-## Categorías y paginación — 13/11/2026
-
-Se agregaron 12 productos reales a la BD de desarrollo, preservando los 10 anteriores:
-22 registros en total. Tres bases, tres correctores, tres sombras y tres accesorios;
-URLs de fuente y fecha de consulta en product-catalog.ts. No cambian migraciones/ERD.
-Jest: 108 pruebas unitarias/HTTP y 18 de integración correctas en la base local _test.
-El frontend reporta 82 pruebas; 97.56% líneas, 96.93% ramas. La revisión Chrome comprobó
-22 IDs distintos en páginas 8/8/6, filtros antes de paginar, recuperación y viewports
-320–1920 px. Solo se preparó una cotización real adicional; no se creó otra reserva.
-
-## Ampliación multi-producto
-
-23 pruebas PostgreSQL: reserva de dos productos, suma de tarifas una vez, reintentos
-concurrentes sin duplicar líneas, expiración completa e idempotente, falta de stock sin
-reserva parcial, carritos en orden inverso sin sobreventa, y migración/reintento de una
-compra anterior conservando su identidad. Las suites limpian exclusivamente la BD local
-con sufijo _test. La migración 3 se aplicó además a la BD local sin borrar datos.
+[Guía manual y Swagger](checkout-testing.md) · [Checklist](acceptance-checklist.md).
