@@ -127,3 +127,7 @@ verificado del proveedor. Se reutiliza la referencia única del pedido y un solo
 Los eventos repetidos se deduplican por la transición atómica, sin guardar el payload
 del webhook ni datos de tarjeta. Un intento iniciado con resultado desconocido no se
 libera por tiempo: requiere verificación del proveedor.
+
+`transactions.payment_submitted_at`: marca durable de envío de pago con tarjeta. Se
+guarda antes del POST al proveedor; reintentos consultan el mismo intento y no crean
+otro cobro. No se guarda el token de tarjeta ni el payload de autorización.

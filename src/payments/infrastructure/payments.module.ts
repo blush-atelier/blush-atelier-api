@@ -1,3 +1,9 @@
+import { ChargeCard, GetCardConfiguration } from '../application/charge-card';
+import {
+  CARD_PAYMENTS,
+  type CardPaymentsGateway,
+} from '../domain/card-payments.port';
+import { WompiCards } from './wompi-cards';
 import { Module } from '@nestjs/common';
 import { CustomersModule } from '../../customers/infrastructure/customers.module';
 import {
@@ -28,14 +34,38 @@ import {
   type WompiSettings,
 } from './wompi';
 import {
+  CardConfigurationController,
   PaymentsController,
   WompiEventsController,
 } from './payments.controller';
 const SETTINGS = Symbol('WOMPI_SETTINGS');
 @Module({
   imports: [CustomersModule],
-  controllers: [PaymentsController, WompiEventsController],
+  controllers: [
+    PaymentsController,
+    WompiEventsController,
+    CardConfigurationController,
+  ],
   providers: [
+    {
+      provide: CARD_PAYMENTS,
+      useFactory: (s: WompiSettings) => new WompiCards(s),
+      inject: [SETTINGS],
+    },
+    {
+      provide: GetCardConfiguration,
+      useFactory: (g: CardPaymentsGateway) => new GetCardConfiguration(g),
+      inject: [CARD_PAYMENTS],
+    },
+    {
+      provide: ChargeCard,
+      useFactory: (
+        u: PaymentUnitOfWork,
+        g: CardPaymentsGateway,
+        r: CheckoutRuntime,
+      ) => new ChargeCard(u, g, r),
+      inject: [PAYMENT_UNIT, CARD_PAYMENTS, CHECKOUT_RUNTIME],
+    },
     { provide: SETTINGS, useFactory: () => wompiSettings() },
     { provide: PAYMENT_UNIT, useClass: TypeOrmPaymentUnitOfWork },
     {

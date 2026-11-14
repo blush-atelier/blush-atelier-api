@@ -26,6 +26,8 @@ const order: PaymentRecord = {
   providerPaymentId: null,
   reservationExpiresAt: '2026-11-13T23:59:00.000Z',
   paymentStartedAt: null,
+  paymentSubmittedAt: null,
+  customerEmail: 'checkout@example.com',
   paymentExpiresAt: null,
 };
 function fixture(changes: Partial<PaymentRecord> = {}) {
@@ -33,6 +35,7 @@ function fixture(changes: Partial<PaymentRecord> = {}) {
   const store: PaymentStore = {
     find: jest.fn().mockResolvedValue(current),
     findByReference: jest.fn().mockResolvedValue(current),
+    claimSubmission: jest.fn().mockResolvedValue(undefined),
     start: jest.fn().mockResolvedValue(undefined),
     apply: jest.fn().mockResolvedValue(undefined),
   };
@@ -123,7 +126,7 @@ it('consulta al proveedor y aplica la decisión después de recuperar el pedido 
       'order',
       data.id,
     ),
-  ).toEqual({ ok: true, value: { verified: true } });
+  ).toEqual({ ok: true, value: { verified: true, submitted: false } });
   expect(f.store.apply).toHaveBeenCalledWith(
     f.current,
     expect.objectContaining({ status: 'APPROVED' }),
@@ -134,7 +137,7 @@ it('sin ID conocido espera al webhook sin inventar un resultado', async () => {
   const f = fixture();
   expect(
     await new VerifyPayment(f.unit, f.gateway).execute('customer', 'order'),
-  ).toEqual({ ok: true, value: { verified: false } });
+  ).toEqual({ ok: true, value: { verified: false, submitted: false } });
   expect(f.gateway.getPayment).not.toHaveBeenCalled();
 });
 it('rechaza ID inválido, ajeno y pago no iniciado', async () => {

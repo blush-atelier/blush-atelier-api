@@ -1,225 +1,45 @@
-# Acceptance checklist — tick off with evidence
+# Checklist de entrega
 
-Auditoría consolidada del 13/11/2026: [matriz y plan mínimo](delivery-audit.md). Los apartados de evidencia de abajo registran hitos históricos; no prueban pagos Wompi ni AWS. Medición actual: API 183 + 36 integración, WEB 126 pruebas; ambos >80% en las cuatro métricas.
+Actualizado el 13/11/2026. «Cumplido localmente» requiere código y pruebas; no equivale a una validación pública en AWS. No se asignan puntos anticipadamente.
 
-## 1. Repository and setup
+| Requisito                                               | Estado                     | Evidencia / acción pendiente                                                                                                                                                            |
+| ------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| React + TypeScript + Vite y Redux Toolkit               | Cumplido localmente        | WEB `main.tsx`, `application/store.ts`, pruebas de estado/carrito                                                                                                                       |
+| Catálogo, descripción, precios, stock y seed PostgreSQL | Cumplido localmente        | API `products`, migraciones y seed; WEB catálogo/detalle                                                                                                                                |
+| Modal «Pagar con tarjeta de crédito»                    | Parcial                    | WEB `CartPage`, `CheckoutDialog`, `card-ui.spec.tsx`; falta revisión renderizada de esta versión                                                                                        |
+| Validación de tarjeta y logos Visa/Mastercard           | Cumplido en pruebas        | WEB `domain/card.ts`, `CardFields`, `card-checkout.spec.ts`; confirmar visualmente                                                                                                      |
+| Contacto y entrega: departamento → ciudad               | Cumplido en pruebas        | WEB formulario, dataset local y `ui.spec.tsx`                                                                                                                                           |
+| Resumen: productos + tarifa base + envío en Backdrop    | Cumplido localmente        | API cotización; WEB `SummaryBackdrop`/`OrderSummary` y pruebas                                                                                                                          |
+| PENDING antes del envío del pago                        | Cumplido localmente        | API `CreatePendingTransaction`/`ChargeCard`; flujo real UAT con adaptadores WEB                                                                                                         |
+| Tokenización y pago Wompi Sandbox                       | Parcial                    | JWE directo a Wompi; APPROVED/DECLINED reales en UAT con API y PostgreSQL aislado, sin navegador; completar prueba UI                                                                   |
+| Resultado verificado, entrega READY y stock             | Cumplido localmente        | Consulta privada, política ROP y UoW PostgreSQL; aprobación/rechazo UAT                                                                                                                 |
+| Rechazo, error y timeout                                | Parcial                    | Rechazo real UAT; ERROR/timeout simulados en Jest. Tercera tarjeta fue rechazada al tokenizar en UAT                                                                                    |
+| Idempotencia de cargo y stock                           | Cumplido en pruebas        | `payment_submitted_at` antes del POST; ocho envíos concurrentes → una llamada/actualización en integración PostgreSQL                                                                   |
+| Sobreventa, expiración y rollback                       | Cumplido en pruebas        | Integración de checkout/basket/payments; intento enviado no se libera solo por tiempo                                                                                                   |
+| Webhook auténtico e idempotente                         | Parcial                    | Checksum + consulta privada y duplicados probados localmente; falta evento real contra URL HTTPS pública                                                                                |
+| Recarga y recuperación segura                           | Parcial                    | Solo referencias en localStorage; token efímero. Jest cubre pedido enviado/no enviado; falta F5 durante pago en navegador real                                                          |
+| Protección de tarjeta y secretos                        | Cumplido en implementación | PAN/CVC cifrados directamente a Wompi, nunca API/Redux/localStorage/logs; API recibe token; revisión de historial público pendiente                                                     |
+| Avisos sobre el checkout y «Completando pago»           | Parcial                    | Native dialog/top layer y pruebas de foco; falta revisar renderizado/teclado en navegador                                                                                               |
+| Hexagonal y ROP                                         | Cumplido en implementación | Domain sin frameworks; casos de uso dependen de puertos; adaptadores DI/Repository/UoW; `Result<T,E>`                                                                                   |
+| Importes exactos                                        | Cumplido en pruebas        | PostgreSQL BIGINT, bigint en cálculo y strings JSON; límite seguro antes de JSON numérico para Wompi                                                                                    |
+| Jest >80% en ambos repositorios                         | Cumplido medido            | API: 206 pruebas + 39 PostgreSQL, 93,71% sentencias / 90,04% ramas / 85,94% funciones / 93,67% líneas. WEB: 113 pruebas, 96,23% / 92,81% / 97,12% / 96,20%; reportes/mandatos en README |
+| CSS Grid/Flexbox, tokens y movimiento reducido          | Cumplido en código         | Estilos por responsabilidad; sin dependencias nuevas ni !important en esta iteración                                                                                                    |
+| Responsive y compatibilidad                             | Parcial                    | Diseño anterior revisado en Chrome; nuevo modal **sin inspección visual**: herramienta bloqueó iniciar Chrome. Revisar nueve tamaños 320×568–1920×1080 y Safari/Firefox                 |
+| README, ERD y Swagger                                   | Parcial                    | Setup, claves por nombre, arquitectura, ERD sincronizado con cinco migraciones y Swagger local; faltan URLs públicas y clean clone                                                      |
 
-- [x] Neutral public repository name; visibility confirmed through GitHub metadata on 13/11/2026.
-- [x] Independent backend repository `blush-atelier-api`; frontend in `blush-atelier-web` (see README).
-- [x] `.gitignore` excludes `.env`, build output, node_modules, coverage, local DB files.
-- [x] `.env.example` lists variable names only; no real values.
-- [ ] README has setup commands that work from a clean clone.
-- [ ] Meaningful commits show real progress.
+## Bloqueantes para entrega
 
-## 2. Product and UI
+- [ ] Probar el flujo visual con tarjetas oficiales Sandbox: validación, resumen, aprobación/rechazo, aviso superior y F5.
+- [ ] Revisar los nueve viewports acordados, dropdowns, foco, scroll y contenido largo; comprobar otros navegadores.
+- [ ] Configurar webhook HTTPS y verificar evento real, duplicados y reconciliación tras perder la respuesta.
+- [ ] Verificar frontend S3/CloudFront, API Lambda/API Gateway y PostgreSQL privado en AWS; migraciones/seed y TLS.
+- [ ] Comprobar HTTPS, CORS, cookies, rutas SPA, secretos, permisos mínimos y controles distribuidos de tráfico.
+- [ ] Verificar CI remoto, protecciones y promoción por PR feature/* → development → staging → production. Sin merges ni despliegues automáticos en esta iteración.
+- [ ] Comprobar repositorios públicos sin secretos, README desde clon limpio y URLs de app/API/Swagger.
+- [ ] Validar costos y rollback antes de habilitar CD/OIDC; una infraestructura final funcional como prioridad.
 
-- [x] Product name, description, price and stock are visible.
-- [ ] "Pay with credit card" opens a modal.
-- [ ] Card form validates required fields and format.
-- [ ] Visa/Mastercard detection is present (bonus).
-- [x] Delivery form validates required fields.
-- [x] Summary shows product amount + base fee + delivery fee.
-- [ ] Payment button is in a backdrop-style summary layer/component.
-- [ ] Loading, error, decline, pending and success states are clear.
-- [ ] Final screen shows transaction reference/status.
-- [x] Return to product page refreshes stock.
-- [x] Refresh restores safe checkout progress.
-- [x] No full PAN/CVV or secret appears in Redux persistence/localStorage.
-- [x] Mobile layout works at iPhone SE reference size without horizontal overflow.
-- [x] Tablet and desktop layouts are polished.
-- [x] Images are optimized, sized, lazy-loaded where appropriate, and have fallbacks.
-- [ ] Keyboard navigation, labels, focus, and contrast are acceptable.
+## Rúbrica
 
-## 3. API and business rules
-
-- [x] Product listing/detail endpoint works.
-- [x] Customer creation/registration endpoint validates data.
-- [x] Delivery creation endpoint validates data.
-- [x] Transaction endpoint creates PENDING transaction and returns reference.
-- [x] Payment endpoint initiates Sandbox flow.
-- [x] Transaction status endpoint returns backend-verified status.
-- [x] Webhook endpoint validates authenticity and handles duplicate events idempotently.
-- [x] Stock reservation is atomic; insufficient stock is rejected. Final stock confirmation after payment remains pending.
-- [ ] Duplicate requests do not double-charge or double-decrement stock.
-- [x] Provider decline/failure leaves consistent transaction and stock state.
-- [x] Backend calculates price, fees, delivery fee and stock; frontend values are not trusted.
-- [x] API uses correct HTTP status codes and validation errors.
-
-## 4. Wompi Sandbox and security
-
-- [ ] Sandbox base URL and keys are configured through environment variables.
-- [ ] Private, event and integrity secrets exist only on backend.
-- [ ] Public key is exposed only if the official integration requires it.
-- [ ] Card collection/tokenization follows current official Wompi documentation.
-- [ ] PAN/CVV are not stored, logged, or sent to our database.
-- [ ] Payment success is verified server-side, not trusted from browser redirect.
-- [ ] Webhook signature/integrity validation follows provider docs.
-- [ ] Secrets are absent from Git history, logs, screenshots and README.
-- [ ] CORS allows only expected frontend origin in production.
-- [ ] HTTPS enabled for deployed app/API.
-- [ ] Security headers enabled.
-- [ ] Sensitive endpoints have rate limiting and input validation.
-- [ ] Database user has least-privilege permissions.
-
-## 5. Hexagonal Architecture and ROP
-
-- [x] Domain has no NestJS/TypeORM/Wompi/AWS imports.
-- [x] Application use cases depend on ports, not concrete adapters.
-- [x] Infrastructure adapters implement ports.
-- [x] Nest controllers only validate/translate HTTP and call use cases.
-- [x] DI tokens bind ports to adapters.
-- [x] ORM models are mapped to domain entities.
-- [x] Use cases return typed `Result<T,E>` for expected outcomes.
-- [x] Controllers map Result errors to appropriate HTTP responses.
-- [x] No broad catch-and-ignore patterns.
-- [x] README includes architecture diagram and request/data flow.
-
-## 6. Tests
-
-- [x] Jest configured and runs in frontend.
-- [x] Jest configured and runs in backend.
-- [x] Domain unit tests cover invariants and business policies.
-- [x] Use-case tests cover success and expected failures.
-- [x] API/controller tests cover validation and HTTP mapping.
-- [x] Frontend tests cover form validation, Redux state, loading/error/success.
-- [x] Payment transition policy: 33 domain cases verify identity, exact amounts, final states and duplicate decisions; provider adapter and DB effects remain pending.
-- [x] Payment adapter tests mock provider; no real payment calls.
-- [x] Duplicate webhook test.
-- [x] Insufficient stock test.
-- [ ] Duplicate payment/idempotency test.
-- [x] Stock concurrency/oversell test.
-- [x] Refresh/resume test.
-- [x] Both apps exceed 80% coverage (actual reports saved).
-- [x] README reports exact coverage and test commands.
-
-## 7. AWS and delivery
-
-- [ ] Frontend deployed to S3 + CloudFront and opens from public URL.
-- [ ] Backend deployed to Lambda + API Gateway and responds from public URL.
-- [ ] Production frontend calls deployed backend (not localhost).
-- [ ] PostgreSQL cloud database reachable securely from backend.
-- [ ] Database migrations/seed completed in cloud.
-- [ ] No public database port or broad inbound rule.
-- [ ] AWS budget alert configured; no unexpected paid resources.
-- [ ] Cloud logs checked without exposing secrets/card data.
-- [ ] Swagger or Postman collection public and linked in README.
-- [ ] README includes AWS architecture, URLs, environment variable names, ERD, setup and test evidence.
-- [ ] Full Sandbox checkout tested against deployed application.
-
-## 8. Interview readiness
-
-- [ ] I can explain public vs private Wompi keys.
-- [ ] I can explain why secrets stay in backend environment variables.
-- [ ] I can explain tokenization and why PAN/CVV are not persisted.
-- [ ] I can trace frontend → API → use case → port → adapter → DB/provider.
-- [ ] I can explain how PostgreSQL relations and transactions work.
-- [ ] I can explain PENDING → final payment state.
-- [ ] I can explain webhook verification and idempotency.
-- [ ] I can explain stock reservation and prevention of overselling.
-- [ ] I can explain Hexagonal Architecture and ROP with one real code example.
-- [ ] I can explain deployment and public URLs in AWS.
-
-## CI/CD extra
-
-- [ ] GitHub Actions CI triggers on PR and development/staging/production pushes.
-- [ ] CI verifies lint, TypeScript, Jest >80% coverage, and build.
-- [ ] GitHub Actions uses least-privilege permissions.
-- [ ] AWS OIDC role is restricted to the correct repository and branch.
-- [ ] AWS deployment runs only after green CI and infrastructure setup.
-- [ ] No long-lived AWS access keys or payment secrets in repository/workflows.
-- [ ] README explains CI/CD and links to public workflow runs.
-
-## Promotion and environments
-
-- [ ] Remote development, staging and production branches published and protected.
-- [ ] feature/* -> development PR with required quality check.
-- [ ] development -> staging PR with CI and validation evidence.
-- [ ] staging -> production PR with CI and acceptance evidence.
-- [ ] Direct pushes and force pushes blocked on permanent branches.
-- [ ] All environments use Wompi Sandbox.
-- [ ] Staging costs evaluated before persistent AWS infrastructure.
-- [ ] Production AWS deployment verified after CI; OIDC scoped to production.
-- [ ] Rollback documented and verified without destructive database rollback.
-- [x] Frontend/backend money contract preserves exact cent values.
-- [ ] First remote GitHub Actions run verified and linked in README.
-
-## Evidence for the products slice
-
-See [verification.md](verification.md): 53 unit/HTTP tests and 6 PostgreSQL integration
-tests passed; backend coverage exceeds 80% in all four metrics. This does not complete
-the payment, frontend, race/oversell or deployed-environment acceptance checks.
-
-- [x] CI workflow created with quality gates and promotion-source checks (remote run pending).
-- [x] Initial migration and repeatable product seed verified on PostgreSQL 17.11.
-- [x] BIGINT/string/bigint conversion verified beyond Number.MAX_SAFE_INTEGER.
-- [x] Current ERD source and SVG export generated; full future checkout model documented separately.
-- [ ] Docker Compose startup/build verified after Docker becomes available in WSL.
-- [ ] Dependency audit findings reviewed and resolved with compatible updates.
-
-## Evidence for the pending checkout slice
-
-- [x] Cookie HttpOnly contains a random credential; PostgreSQL stores only its hash and expiry.
-- [x] Session ownership checked for delivery and transaction access; no contact/address in status JSON.
-- [x] Unexpected card fields and malformed/oversized bodies rejected without echoing received values.
-- [x] Strict DTO validation, CORS with credentials, custom anti-CSRF header and per-process throttling tested.
-- [x] Concurrent duplicate requests create one PENDING transaction and one reservation.
-- [x] Eight buyers competing for three units create exactly three reservations.
-- [x] Failed transaction insertion rolls back the stock reservation.
-- [x] Expired unstarted reservation releases once; a started payment is not released by time alone.
-- [x] WSL local commands discover the current Docker container address without modifying .env.
-- [ ] Provider payment confirmation, decline, webhook and reconciliation verified (next slice).
-- [ ] AWS shared/distributed rate controls and production cookie routing verified during deployment.
-
-See [payment security](payment-security.md), [Swagger walkthrough](checkout-testing.md)
-and measured [verification](verification.md). Stock confirmation/decrement after payment
-is not implemented yet; frontend refresh UX is verified locally; provider idempotency remains pending.
-
-## Evidencia de catálogo ampliado
-
-- [x] Diez productos con UUID/SKU estables: ocho de marcas reales y dos heredados.
-- [x] Precios COP y fuentes de imágenes registrados en notas; inventario ficticio.
-- [x] Seed parametrizado conserva precio, stock y reservas al repetirse, comprobado en PostgreSQL.
-- [x] 108 pruebas unitarias/HTTP y 17 de integración correctas; cobertura actual en README.
-
-## Evidencia de categorías ampliadas
-
-- [x] Seed local de 22 productos sin sobrescribir stock o precios existentes.
-- [x] Bases, correctores, sombras y accesorios: tres registros nuevos por categoría con foto y precio COP.
-- [x] Test PostgreSQL de prefijos/cantidad, imágenes y precisión de precio.
-- [x] 108 pruebas unitarias/HTTP y 18 de integración correctas en este ciclo.
-
-## Estado consolidado para revisión antes de AWS
-
-Completado localmente: React/Redux, catálogo/detalle responsive, entrega, resumen,
-PENDING con sesión y reserva, recuperación, PostgreSQL/migraciones/seed, hexagonal/ROP
-y Jest >80% en ambos repositorios. Las marcas de UI corresponden a Chrome emulado,
-no a una certificación de todos los navegadores. La pantalla actual muestra una reserva,
-no el resultado de un pago. Frontend: 99 pruebas; backend: 111 + 23 integración.
-
-Pendiente obligatorio: captura/tokenización de tarjeta con Wompi Sandbox, procesar y
-verificar pago desde backend, webhook autenticado/idempotente y actualización definitiva
-del inventario/estado; pruebas de aprobado/rechazado/error y E2E Sandbox. Después,
-validar Lambda/API Gateway, PostgreSQL privado/TLS, S3/CloudFront con rutas SPA,
-HTTPS/CORS/cookies, secretos/OIDC, CI remoto, promoción protegida y URLs públicas.
-La infraestructura puede prepararse en paralelo; la entrega completa requiere el pago.
-
-## Carrito de varios productos
-
-- [x] Cotización y PENDING de varias líneas con precios de servidor y tarifas una vez.
-- [x] Reserva atómica y expiración de todas las líneas sin duplicados.
-- [x] Competencia con orden inverso de productos sin sobreventa, probada en PostgreSQL.
-- [x] Migración preserva pedido anterior y su reintento idempotente.
-- [x] Evidencia actual: 111 pruebas unitarias/HTTP y 23 de integración; cobertura en README.
-
-## Integración de pagos — evidencia local
-
-- [x] Sesión Sandbox firmada y estable; PENDING previo, propiedad y expiración validadas.
-- [x] Consulta privada del proveedor, webhook autenticado y proyección de campos seguros.
-- [x] PostgreSQL: aprobación de todas las líneas/entrega READY, liberación por rechazo y duplicados concurrentes sin repetir stock; rollback y timeout comprobados.
-- [x] API: 183 pruebas unitarias/HTTP y 36 PostgreSQL; métricas >80% en README.
-- [x] Frontend conectado a Widget/puertos; 126 pruebas, proveedor simulado, recuperación del ID seguro.
-- [ ] Ejecutar aprobado/rechazado/error reales con credenciales propias de Sandbox.
-- [ ] Webhook HTTPS accesible desde Wompi y F5 durante pago real comprobados.
-- [ ] Confirmar no doble cobro en Sandbox y completar validación AWS/otros navegadores.
-
-Los checks nuevos acreditan implementación y pruebas locales; no certifican proveedor real ni despliegue.
+Base: README 5, imágenes/UX 5, onboarding con tarjeta 20, API 20, Jest >80% 30 y despliegue 20.
+Extra: seguridad/HTTPS 5, responsive/navegadores 5, CSS 10, código limpio 10, hexagonal 10 y ROP 10.
+Los 150 puntos dependen de la evaluación: AWS, webhook público y comprobación visual siguen abiertos.

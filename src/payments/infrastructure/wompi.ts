@@ -115,34 +115,10 @@ export class WompiGateway implements PaymentGateway {
               : 'PaymentProviderUnavailable',
         };
       const body: unknown = await response.json();
-      const data = record(body) && record(body.data) ? body.data : null;
-      if (
-        !data ||
-        data.id !== id ||
-        typeof data.reference !== 'string' ||
-        !data.reference.length ||
-        data.reference.length > 255 ||
-        data.currency !== 'COP' ||
-        typeof data.amount_in_cents !== 'number' ||
-        !Number.isSafeInteger(data.amount_in_cents) ||
-        data.amount_in_cents <= 0 ||
-        typeof data.status !== 'string' ||
-        !['PENDING', 'APPROVED', 'DECLINED', 'ERROR', 'VOIDED'].includes(
-          data.status,
-        )
-      )
-        return { ok: false, error: 'InvalidProviderResponse' };
-      // Se proyectan campos seguros; no se propagan método de pago, contacto ni payload completo.
-      return {
-        ok: true,
-        value: {
-          id,
-          reference: data.reference,
-          amountMinor: String(data.amount_in_cents),
-          currency: 'COP',
-          status: data.status as PaymentStatus,
-        },
-      };
+      const observed = paymentObservation(body, id);
+      return observed
+        ? { ok: true, value: observed }
+        : { ok: false, error: 'InvalidProviderResponse' };
     } catch {
       return { ok: false, error: 'PaymentProviderUnavailable' };
     }
@@ -241,4 +217,36 @@ export class WompiEvents implements PaymentEventVerifier {
       ? { ok: true, value: { providerPaymentId: body.data.transaction.id } }
       : { ok: false, error: 'InvalidWebhook' };
   }
+}
+
+export function paymentObservation(
+  body: unknown,
+  expectedId?: string,
+): PaymentObservation | null {
+  const data = record(body) && record(body.data) ? body.data : null;
+  if (
+    !data ||
+    typeof data.id !== 'string' ||
+    !/^[A-Za-z0-9_-]{1,128}$/.test(data.id) ||
+    (expectedId !== undefined && data.id !== expectedId) ||
+    typeof data.reference !== 'string' ||
+    !data.reference.length ||
+    data.reference.length > 255 ||
+    data.currency !== 'COP' ||
+    typeof data.amount_in_cents !== 'number' ||
+    !Number.isSafeInteger(data.amount_in_cents) ||
+    data.amount_in_cents <= 0 ||
+    typeof data.status !== 'string' ||
+    !['PENDING', 'APPROVED', 'DECLINED', 'ERROR', 'VOIDED'].includes(
+      data.status,
+    )
+  )
+    return null;
+  return {
+    id: data.id,
+    reference: data.reference,
+    amountMinor: String(data.amount_in_cents),
+    currency: 'COP',
+    status: data.status as PaymentStatus,
+  };
 }

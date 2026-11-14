@@ -202,4 +202,22 @@ Preguntas: ¿por qué una sola transacción por carrito? Para reservar todo o na
 cobrar tarifas por producto. ¿Por qué guardar precio por línea? Para conservar el
 importe acordado aunque cambie el catálogo. ¿Por qué no borrar las columnas anteriores?
 Para migrar sin perder recuperación/idempotencia; son la primera línea compatible.
-Los pagos siguen pendientes y no se marcan APPROVED desde el navegador.
+El resultado del pago nunca se marca APPROVED desde el navegador.
+
+## Pago directo con tarjeta
+
+`ChargeCard` recibe un token, comprueba propiedad/estado e importe y confirma la marca
+`payment_submitted_at` antes de llamar al puerto `CardPaymentsGateway`. El adaptador
+`WompiCards` firma/envía fuera del bloqueo DB; la política ROP valida la respuesta y
+el UoW confirma stock/entrega atómicamente. Los errores esperados son Result; HTTP
+solo valida y traduce. `GetCardConfiguration` entrega llave pública JWE y condiciones,
+porque UAT no permite leer la llave de tokenización directamente por CORS.
+
+En WEB, `domain/card.ts` valida; `card-tokenization.ts` usa Web Crypto y envía JWE
+solo a Wompi. Token y aceptaciones viven en un cierre efímero, fuera de Redux. La UI
+recibe únicamente marca/últimos cuatro dígitos para el resumen. Tokenizar no cobra.
+
+Pregunta clave: ¿por qué no reintentar automáticamente un timeout? La solicitud pudo
+haber llegado al proveedor. La marca evita otro POST y se reconcilia con consulta
+privada/webhook verificado. Si se pierde el ID, hace falta webhook público; un cierre
+del navegador no prueba rechazo ni permite liberar stock con seguridad.

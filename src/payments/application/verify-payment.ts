@@ -16,7 +16,7 @@ export class VerifyPayment {
     customerId: string,
     id: string,
     providerId?: string,
-  ): Promise<PaymentResult<{ verified: boolean }>> {
+  ): Promise<PaymentResult<{ verified: boolean; submitted: boolean }>> {
     if (providerId !== undefined && !validProviderId(providerId))
       return { ok: false, error: 'InvalidPaymentInput' };
     const current = await this.unit.run(async (store) => {
@@ -33,7 +33,14 @@ export class VerifyPayment {
     )
       return { ok: false, error: 'PaymentIdentityMismatch' };
     const lookupId = providerId ?? current.value.providerPaymentId;
-    if (!lookupId) return { ok: true, value: { verified: false } };
+    if (!lookupId)
+      return {
+        ok: true,
+        value: {
+          verified: false,
+          submitted: Boolean(current.value.paymentSubmittedAt),
+        },
+      };
     if (!current.value.paymentStartedAt)
       return { ok: false, error: 'InvalidPaymentState' };
     // La red queda fuera de la transacción DB para no bloquear stock esperando al proveedor.
@@ -47,7 +54,10 @@ export class VerifyPayment {
       const decision = decidePaymentTransition(order, observed.value);
       if (!decision.ok) return decision;
       await store.apply(order, observed.value, decision.value);
-      return { ok: true, value: { verified: true } };
+      return {
+        ok: true,
+        value: { verified: true, submitted: Boolean(order.paymentSubmittedAt) },
+      };
     });
   }
 }

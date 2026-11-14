@@ -305,6 +305,7 @@ it('reserva todo el carrito una vez, conserva sus líneas y cobra las tarifas un
     .get(`/api/transactions/${responses[0].body.id}`)
     .expect(200);
   expect(retrieved.body.items).toHaveLength(2);
+  await source.undoLastMigration(); // Retira primero el claim de envío de tarjeta.
   await source.undoLastMigration(); // Retira primero las columnas de pagos, sin intentos iniciados.
   await expect(source.undoLastMigration()).rejects.toThrow(
     'Cannot roll back baskets without losing order lines',
@@ -399,6 +400,7 @@ it('la migración conserva una transacción anterior, su reserva y su clave', as
   const created = await pending(agent, deliveryId, 'legacy-migration').expect(
     201,
   );
+  await source.undoLastMigration();
   await source.undoLastMigration();
   await source.undoLastMigration();
   expect((await stock()).stock_reserved).toBe(1);

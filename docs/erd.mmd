@@ -59,6 +59,7 @@ erDiagram
         varchar status
         varchar reservation_status
         timestamptz payment_started_at "nullable"
+        timestamptz payment_submitted_at "claim único antes del POST"
         timestamptz payment_expires_at "nullable"
         varchar provider_payment_id UK "nullable"
         varchar provider_payment_status "nullable"

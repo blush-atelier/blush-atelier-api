@@ -25,12 +25,15 @@ export interface PaymentRecord extends PaymentOrder {
   deliveryId: string;
   reservationExpiresAt: string;
   paymentStartedAt: string | null;
+  paymentSubmittedAt: string | null;
+  customerEmail: string;
   paymentExpiresAt: string | null;
 }
 export interface PaymentStore {
   find(id: string, customerId: string): Promise<PaymentRecord | null>;
   findByReference(reference: string): Promise<PaymentRecord | null>;
   start(id: string, now: Date, expiresAt: string): Promise<void>;
+  claimSubmission(id: string, now: Date, expiresAt: string): Promise<void>;
   apply(
     record: PaymentRecord,
     observation: PaymentObservation,

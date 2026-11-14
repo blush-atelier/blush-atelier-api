@@ -1,3 +1,4 @@
+import { AddCardSubmission1794528004000 } from './migrations/1794528004000-add-card-submission';
 import { AddPayments1794528003000 } from './migrations/1794528003000-add-payments';
 import { AddBasket1794528002000 } from './migrations/1794528002000-add-basket';
 import { CustomerOrmEntity } from '../../../customers/infrastructure/customer.orm-entity';
@@ -45,6 +46,7 @@ export function databaseOptions(
       CreateCheckout1794528001000,
       AddBasket1794528002000,
       AddPayments1794528003000,
+      AddCardSubmission1794528004000,
     ],
     connectTimeoutMS: 5000,
     extra: { statement_timeout: 10000 },

@@ -1,3 +1,4 @@
+import { CARD_PAYMENTS } from '../../src/payments/domain/card-payments.port';
 import 'reflect-metadata';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
@@ -28,6 +29,11 @@ const secondId = '22222222-2222-4222-8222-222222222222';
 let source: DataSource;
 let app: INestApplication;
 const gateway = { getPayment: jest.fn() };
+const cards = {
+  enabled: true,
+  configuration: jest.fn(),
+  charge: jest.fn(),
+};
 beforeAll(async () => {
   if (!process.env.POSTGRES_DB?.endsWith('_test'))
     throw new Error('Payment integration requires isolated _test database');
@@ -36,6 +42,8 @@ beforeAll(async () => {
   await source.runMigrations();
   await seedProducts(source);
   const module = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(CARD_PAYMENTS)
+    .useValue(cards)
     .overrideProvider(PAYMENT_GATEWAY)
     .useValue(gateway)
     .overrideProvider(PAYMENT_CHECKOUT)
@@ -49,6 +57,8 @@ beforeAll(async () => {
 }, 30000);
 beforeEach(async () => {
   gateway.getPayment.mockReset();
+  cards.charge.mockReset();
+  cards.configuration.mockReset();
   await source.query(
     'TRUNCATE transaction_items,transactions,deliveries,customers',
   );
@@ -309,7 +319,94 @@ it('fallar la entrega revierte también pago y stock; el reintento puede complet
 it('protege trazabilidad al intentar revertir una migración con pago iniciado', async () => {
   const f = await create();
   await start(f);
+  await source.undoLastMigration();
   await expect(source.undoLastMigration()).rejects.toThrow(
     'Cannot remove payment tracking',
   );
+  await source.runMigrations();
+});
+
+const cardAuthorization = {
+  token: 'tok_stagtest_integration',
+  acceptanceToken: 'privacy-token',
+  personalDataToken: 'personal-token',
+  installments: 1,
+  privacyAccepted: true,
+  personalDataAccepted: true,
+};
+function payCard(
+  f: Awaited<ReturnType<typeof create>>,
+  body: object = cardAuthorization,
+) {
+  return f.agent
+    .post(`/api/transactions/${f.id}/payments`)
+    .set('X-Checkout-Request', '1')
+    .send(body);
+}
+it('cargo directo: ocho solicitudes generan un solo POST al proveedor y un descuento', async () => {
+  const f = await create(true);
+  cards.charge.mockResolvedValue({ ok: true, value: f.observed });
+  await Promise.all(Array.from({ length: 8 }, () => payCard(f).expect(200)));
+  expect(cards.charge).toHaveBeenCalledTimes(1);
+  expect((await inventory())[0]).toMatchObject({
+    stock_on_hand: 18,
+    stock_reserved: 0,
+  });
+  const row = (
+    await source.query(
+      'SELECT payment_submitted_at,status FROM transactions WHERE id=$1',
+      [f.id],
+    )
+  )[0];
+  expect(row.payment_submitted_at).toBeInstanceOf(Date);
+  expect(row.status).toBe('APPROVED');
+  await expect(source.undoLastMigration()).rejects.toThrow(
+    'Cannot remove card payment tracking',
+  );
+});
+it('timeout de creación conserva claim; reintentar no envía otro cargo y webhook reconcilia', async () => {
+  const f = await create();
+  cards.charge.mockResolvedValueOnce({
+    ok: false,
+    error: 'PaymentProviderUnavailable',
+  });
+  await payCard(f).expect(503);
+  await payCard(f).expect(200);
+  expect(cards.charge).toHaveBeenCalledTimes(1);
+  const state = await f.agent
+    .post(`/api/transactions/${f.id}/payment-verification`)
+    .set('X-Checkout-Request', '1')
+    .send({})
+    .expect(200);
+  expect(state.body.submitted).toBe(true);
+  expect((await inventory())[0].stock_reserved).toBe(1);
+  await request(app.getHttpServer())
+    .post('/api/payments/wompi/events')
+    .send(eventBody())
+    .expect(200);
+  expect((await inventory())[0].stock_on_hand).toBe(19);
+});
+it('tarjeta en claro, consentimientos falsos y sesión ajena se rechazan sin claim', async () => {
+  const owner = await create();
+  const other = await create();
+  await payCard(owner, { ...cardAuthorization, number: 'NOT_A_CARD' }).expect(
+    400,
+  );
+  await payCard(owner, { ...cardAuthorization, privacyAccepted: false }).expect(
+    400,
+  );
+  await other.agent
+    .post(`/api/transactions/${owner.id}/payments`)
+    .set('X-Checkout-Request', '1')
+    .send(cardAuthorization)
+    .expect(404);
+  expect(cards.charge).not.toHaveBeenCalled();
+  expect(
+    (
+      await source.query(
+        'SELECT payment_submitted_at FROM transactions WHERE id=$1',
+        [owner.id],
+      )
+    )[0].payment_submitted_at,
+  ).toBeNull();
 });

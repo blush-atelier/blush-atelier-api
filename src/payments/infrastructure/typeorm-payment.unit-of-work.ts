@@ -18,19 +18,24 @@ class PostgresPaymentStore implements PaymentStore {
     values: string[],
   ): Promise<PaymentRecord | null> {
     const rows = (await this.manager.query(
-      `SELECT id, customer_id AS "customerId", delivery_id AS "deliveryId", reference,
-      total_minor AS "totalMinor", currency, status, reservation_status AS "reservationStatus",
-      provider_payment_id AS "providerPaymentId", reservation_expires_at AS "reservationExpiresAt",
-      payment_started_at AS "paymentStartedAt", payment_expires_at AS "paymentExpiresAt"
-      FROM transactions WHERE ${where} FOR UPDATE`,
+      `SELECT t.id,t.customer_id AS "customerId",t.delivery_id AS "deliveryId",t.reference,
+      t.total_minor AS "totalMinor",t.currency,t.status,t.reservation_status AS "reservationStatus",
+      t.provider_payment_id AS "providerPaymentId",t.reservation_expires_at AS "reservationExpiresAt",
+      t.payment_started_at AS "paymentStartedAt",t.payment_expires_at AS "paymentExpiresAt",
+      t.payment_submitted_at AS "paymentSubmittedAt",c.email AS "customerEmail"
+      FROM transactions t JOIN customers c ON c.id=t.customer_id WHERE ${where} FOR UPDATE OF t`,
       values,
     )) as (Omit<
       PaymentRecord,
-      'reservationExpiresAt' | 'paymentStartedAt' | 'paymentExpiresAt'
+      | 'reservationExpiresAt'
+      | 'paymentStartedAt'
+      | 'paymentExpiresAt'
+      | 'paymentSubmittedAt'
     > & {
       reservationExpiresAt: Date;
       paymentStartedAt: Date | null;
       paymentExpiresAt: Date | null;
+      paymentSubmittedAt: Date | null;
     })[];
     const row = rows[0];
     return row
@@ -39,14 +44,21 @@ class PostgresPaymentStore implements PaymentStore {
           reservationExpiresAt: row.reservationExpiresAt.toISOString(),
           paymentStartedAt: row.paymentStartedAt?.toISOString() ?? null,
           paymentExpiresAt: row.paymentExpiresAt?.toISOString() ?? null,
+          paymentSubmittedAt: row.paymentSubmittedAt?.toISOString() ?? null,
         }
       : null;
   }
   find(id: string, customerId: string) {
-    return this.read('id=$1 AND customer_id=$2', [id, customerId]);
+    return this.read('t.id=$1 AND t.customer_id=$2', [id, customerId]);
   }
   findByReference(reference: string) {
-    return this.read('reference=$1', [reference]);
+    return this.read('t.reference=$1', [reference]);
+  }
+  async claimSubmission(id: string, now: Date, expiresAt: string) {
+    await this.manager.query(
+      'UPDATE transactions SET payment_submitted_at=$2,payment_started_at=$2,payment_expires_at=$3,updated_at=$2 WHERE id=$1',
+      [id, now, expiresAt],
+    );
   }
   async start(id: string, now: Date, expiresAt: string) {
     await this.manager.query(

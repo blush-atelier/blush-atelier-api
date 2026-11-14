@@ -1,5 +1,8 @@
+import { ChargeCard, GetCardConfiguration } from '../application/charge-card';
 import {
   Body,
+  Get,
+  Ip,
   Controller,
   HttpCode,
   Param,
@@ -15,7 +18,16 @@ import {
   ApiPropertyOptional,
   ApiProperty,
 } from '@nestjs/swagger';
-import { IsOptional, Matches, Equals } from 'class-validator';
+import {
+  IsOptional,
+  Matches,
+  Equals,
+  IsString,
+  MaxLength,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 import {
   CheckoutCustomer,
   CheckoutSessionGuard,
@@ -63,6 +75,20 @@ export class VerifyPaymentDto {
   @Matches(/^[A-Za-z0-9_-]{1,128}$/)
   providerPaymentId?: string;
 }
+export class ChargeCardDto {
+  @ApiProperty()
+  @Matches(/^tok_(?:test_|stagtest)[A-Za-z0-9_-]{1,180}$/)
+  token!: string;
+  @ApiProperty() @IsString() @MaxLength(4096) acceptanceToken!: string;
+  @ApiProperty() @IsString() @MaxLength(4096) personalDataToken!: string;
+  @ApiProperty({ minimum: 1, maximum: 36 })
+  @IsInt()
+  @Min(1)
+  @Max(36)
+  installments!: number;
+  @ApiProperty({ enum: [true] }) @Equals(true) privacyAccepted!: boolean;
+  @ApiProperty({ enum: [true] }) @Equals(true) personalDataAccepted!: boolean;
+}
 class PaymentSessionResponse {
   @ApiProperty() reference!: string;
   @ApiProperty({ description: 'Centavos exactos como string.' })
@@ -85,7 +111,25 @@ export class PaymentsController {
   constructor(
     private readonly prepare: PreparePayment,
     private readonly verify: VerifyPayment,
+    private readonly charge: ChargeCard,
   ) {}
+  @Post(':id/payments')
+  @HttpCode(200)
+  pay(
+    @CheckoutCustomer() customerId: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() input: ChargeCardDto,
+    @Ip() ip: string,
+  ) {
+    return this.charge
+      .execute(
+        customerId,
+        id,
+        input,
+        ip === '::1' ? '127.0.0.1' : ip.replace(/^::ffff:/, ''),
+      )
+      .then(paymentValue);
+  }
   @Post(':id/payment-session')
   @HttpCode(200)
   @ApiOkResponse({ type: PaymentSessionResponse })
@@ -118,5 +162,16 @@ export class WompiEventsController {
   @HttpCode(200)
   receive(@Body() input: unknown) {
     return this.processEvent.execute(input).then(paymentValue);
+  }
+}
+
+@ApiTags('payments')
+@Controller('payments')
+export class CardConfigurationController {
+  constructor(private readonly configuration: GetCardConfiguration) {}
+  @Get('card-configuration')
+  @HttpCode(200)
+  get() {
+    return this.configuration.execute().then(paymentValue);
   }
 }

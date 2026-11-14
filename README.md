@@ -62,7 +62,7 @@ Expande un endpoint, pulsa **Try it out** y luego **Execute**. Los productos son
 | GET    | `/api/transactions/{id}`               | Reanudar y consultar el estado de la propia compra |
 
 En cada POST usa `X-Checkout-Request: 1`. Swagger muestra la cabecera; registra primero
-el cliente para que el navegador guarde la cookie. No introduzcas tarjetas en Swagger. La captura se hace únicamente en el Widget alojado de Wompi.
+el cliente para que el navegador guarde la cookie. No introduzcas tarjetas en Swagger. La tarjeta se cifra y tokeniza desde el navegador directamente con Wompi.
 [Ejemplos para probar el flujo](docs/checkout-testing.md).
 
 UUID inválido: 400; producto inexistente: 404; almacenamiento no disponible: 503.
@@ -77,6 +77,8 @@ flowchart LR
     UC --> P[Puerto de dominio]
     A[Adaptador TypeORM] -. implementa .-> P
     A --> DB[(PostgreSQL)]
+    W[Adaptador Wompi] -. implementa .-> P
+    W --> Sandbox[Wompi Sandbox]
 ```
 
 Organización por módulo: `domain`, `application` e `infrastructure`.
@@ -109,9 +111,9 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **186 pruebas unitarias/HTTP y 36 de integración PostgreSQL correctas**.
-Cobertura Jest del backend: sentencias **93,82%**, ramas **89,57%**,
-funciones **87,65%** y líneas **93,72%**; umbral obligatorio configurado en 81%.
+Resultado medido: **206 pruebas unitarias/HTTP y 39 de integración PostgreSQL correctas**.
+Cobertura Jest del backend: sentencias **93,71%**, ramas **90,04%**,
+funciones **85,94%** y líneas **93,67%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
 [Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
 
@@ -150,50 +152,54 @@ WOMPI_API_URL=https://api-sandbox.co.uat.wompi.dev/v1
 Sin WOMPI_API_URL se toma UAT_SANDBOX_URL y, si tampoco existe, el Sandbox público.
 UAT_URL queda como referencia: no es el destino activo de esta integración Sandbox.
 Los destinos permitidos son Sandbox público y UAT Sandbox; no se envían llaves a
-URLs arbitrarias. El frontend usa el Widget UAT `https://checkout.co.uat.wompi.dev/widget.js`
-con llaves stagtest; puede configurarse mediante VITE_WOMPI_WIDGET_URL. Cambiar
-la API sin cambiar el Widget mezcla ambientes.
+URLs arbitrarias. El frontend obtiene la configuración pública desde esta API: ya
+no carga el Widget de compra ni necesita VITE_WOMPI_WIDGET_URL.
 
 No compartas ni versiones los valores. No son el usuario/contraseña del dashboard.
 Reinicia API y frontend después de configurar. Sin habilitar Wompi, catálogo y reservas
 funcionan; el intento de pago devuelve `PaymentNotConfigured`. No se instalaron paquetes
-nuevos; se usa fetch/crypto de Node y el script oficial alojado del Widget.
+nuevos; se usa fetch/crypto de Node y Web Crypto del navegador.
 
-| Método | Endpoint                                      | Uso                                                                          |
-| ------ | --------------------------------------------- | ---------------------------------------------------------------------------- |
-| POST   | `/api/transactions/{id}/payment-session`      | Sesión firmada para un PENDING propio; cuerpo `{ "method": "CARD" }`         |
-| POST   | `/api/transactions/{id}/payment-verification` | Consultar al proveedor; `{}` o `{ "providerPaymentId": "ID_DEL_PROVEEDOR" }` |
-| POST   | `/api/payments/wompi/events`                  | Webhook firmado de Wompi, sin cookie ni cabecera del comprador               |
+| Método | Endpoint                                      | Uso                                                                             |
+| ------ | --------------------------------------------- | ------------------------------------------------------------------------------- |
+| GET    | `/api/payments/card-configuration`            | Llave pública de tokenización y condiciones de aceptación; no contiene secretos |
+| POST   | `/api/transactions/{id}/payments`             | Enviar token de tarjeta, cuotas y aceptaciones para un PENDING propio           |
+| POST   | `/api/transactions/{id}/payment-verification` | Consultar el resultado verificado; `{}` o ID Wompi como pista                   |
+| POST   | `/api/payments/wompi/events`                  | Webhook firmado; no requiere cookie del comprador                               |
 
-Los dos primeros requieren cookie y `X-Checkout-Request: 1`. Después de verificar,
-GET `/api/transactions/{id}` muestra el estado guardado por el servidor. No envíes
-status, importe ni tarjeta a la verificación: no forman parte de su contrato.
+Los POST del comprador requieren cookie y `X-Checkout-Request: 1`. Nunca envíes
+PAN/CVC, precios ni un supuesto estado aprobado. Swagger rechaza campos adicionales.
+La ruta anterior `payment-session` se conserva para pedidos iniciados con el Widget;
+un pedido que ya inició ese flujo no se puede volver a cobrar por la nueva ruta.
 
-Prueba en el frontend: carrito → entrega → resumen/Backdrop → Continuar con el pago.
-Se crea PENDING antes de abrir Wompi. Elige tarjeta y usa exclusivamente los
-[datos oficiales de Sandbox](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/).
-Revisa aprobado, rechazo, cierre sin pagar y recuperación tras F5; el estado mostrado
-proviene del backend, no del callback. Un rechazo libera reserva; aprobación confirma
-stock y deja entrega READY; timeout conserva PENDING. No reintentes con otra compra
-si el resultado todavía es desconocido.
+Flujo: carrito → **Pagar con tarjeta de crédito** → tarjeta y entrega → resumen
+Backdrop → pagar → PENDING persistido → envío a Wompi → estado verificado/stock.
+La tokenización previa al resumen no mueve dinero. Visa/Mastercard se detectan en el
+navegador; número/CVC solo viven en el formulario y se limpian al preparar el resumen o cerrar.
+Web Crypto genera JWE RSA-OAEP-256 + A256GCM y envía el cifrado directamente a Wompi.
+La API entrega la llave pública porque UAT no permite leer ese endpoint por CORS.
+El token se mantiene en memoria, fuera de Redux/localStorage, hasta enviar el pago.
+Después de F5, un pedido no enviado pide la tarjeta de nuevo; uno enviado solo consulta.
 
-Para recibir eventos reales, configura en el dashboard Sandbox una URL HTTPS pública
-que llegue a `/api/payments/wompi/events` de esta API (AWS actualizado o un túnel local
-que controles). Wompi no puede llamar a localhost. El callback permite probar el pago
-local, pero refrescar durante el Widget requiere webhook accesible para no perder su
-resultado. Si falla la respuesta de verificación, el frontend conserva solo el ID del
-proveedor para reconsultarlo; también puedes reconciliarlo desde Swagger con ese ID.
-Un intento iniciado sin resultado verificable conserva stock para evitar sobreventa;
-no se libera automáticamente por vencer el reloj.
+Antes del POST remoto se confirma `payment_submitted_at` bajo bloqueo PostgreSQL.
+Un duplicado nunca repite el cargo. Aprobación confirma stock y entrega READY;
+rechazo/error liberan reserva. Timeout conserva PENDING y stock reservado: no implica
+rechazo. Si se pierde el ID del proveedor, el webhook público debe reconciliarlo;
+no se inventa el resultado ni se hace otro cargo. Registra una URL HTTPS que llegue a
+`/api/payments/wompi/events` en el dashboard Sandbox; localhost no recibe eventos.
 
-El número completo y CVV se recogen en el formulario alojado de Wompi, no en nuestra
-API, Redux, localStorage o logs. La API firma con secretos backend, valida checksum
-con comparación constante y consulta el estado con llave privada. BIGINT/bigint y
-strings JSON conservan precisión; antes de convertir al número requerido por el Widget
-se comprueba Number.MAX_SAFE_INTEGER.
+Prueba únicamente con los [datos oficiales de Sandbox](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/):
+Visa `4242…4242` aprueba y `4111…1111` declina, fecha futura y CVC de tres dígitos.
+No se precargan esos datos en la tienda. Para otro intento usa una nueva selección
+solo después de conocer el resultado final. Las credenciales UAT pueden limitar las
+tarjetas de prueba admitidas.
 
-Evidencia actual: proveedor simulado en Jest/Chrome y stock real en PostgreSQL local.
-**Pago real Sandbox con tus credenciales, webhook público y AWS: pendientes de validación.**
-Documentación oficial: [Widget](https://docs.wompi.co/docs/colombia/widget-checkout-web/),
-[eventos](https://docs.wompi.co/docs/colombia/eventos/) y
-[consulta backend](https://docs.wompi.co/docs/colombia/seguimiento-de-transacciones/).
+Verificado contra UAT Sandbox con los adaptadores del frontend y API/PostgreSQL local
+**aislada**: APPROVED (una unidad menos), DECLINED (stock conservado) y PENDING previo.
+No acredita interacción de navegador: el arranque de Chrome fue bloqueado por la herramienta.
+ERROR, timeouts, concurrencia y webhook duplicado están cubiertos con proveedor simulado;
+**webhook público real, revisión visual de esta iteración y AWS permanecen pendientes**.
+
+Documentación oficial: [tarjetas/JWE](https://docs.wompi.co/docs/colombia/metodos-de-pago/),
+[aceptaciones](https://docs.wompi.co/docs/colombia/tokens-de-aceptacion/) y
+[eventos](https://docs.wompi.co/docs/colombia/eventos/).
