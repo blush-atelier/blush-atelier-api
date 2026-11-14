@@ -43,7 +43,7 @@ no sustituye las comprobaciones de propiedad, importe y estado de la compra.
 
 En local: HTTP de desarrollo, cookie SameSite=Lax; utiliza siempre `localhost`.
 Wompi se contacta por HTTPS. En producción el código exige origen frontend HTTPS;
-la cookie es Secure, HttpOnly y SameSite=None. **CloudFront respondió por HTTPS en esta revisión; no se verificó TLS del origen API/RDS desplegado**.
+la cookie es Secure, HttpOnly y SameSite=None. **Web y API públicas respondieron por HTTPS; no se inspeccionó TLS del tramo CloudFront/origen ni de RDS**.
 CORS limita el origen; los POST del comprador requieren `X-Checkout-Request: 1`.
 El webhook tiene su autenticación propia. `/api` devuelve `Cache-Control: no-store`.
 
@@ -93,9 +93,9 @@ automático sin repetir el cargo. [Mediciones](verification.md).
 
 Contra UAT Sandbox, con adaptadores WEB desde Node y API/DB aisladas: tokenización,
 APPROVED con descuento y DECLINED con stock físico conservado. No acredita navegador,
-ERROR real ni webhook público real. No se realizaron pagos con dinero real.
+ERROR real ni webhook emitido por Wompi hacia AWS. El receptor público sí rechazó un evento sin firma con 401. No se realizaron pagos con dinero real.
 
-Pendiente: E2E visual del flujo actual, webhook HTTPS público, configuración AWS/TLS de DB, permisos
+Pendiente: E2E de compra en AWS, evento emitido por Wompi, cabeceras web y configuración efectiva AWS/TLS de DB, permisos
 mínimos y controles distribuidos. Rate limiting actual es por proceso; no sustituye
 controles de API Gateway/WAF. Tokenizar/cifrar no reemplaza TLS ni certifica PCI u OWASP.
 Para AWS se debe validar enrutamiento `/api` y cookies; SameSite=None no garantiza
