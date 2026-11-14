@@ -1,7 +1,7 @@
 sequenceDiagram
     participant F as React y casos de uso
     participant A as API NestJS
-    participant D as PostgreSQL
+    participant D as PostgreSQL RDS
     participant W as Wompi Sandbox
     F->>A: Registrar cliente y entrega, sin tarjeta
     A->>D: Contacto, direccion y hash de sesion
@@ -36,7 +36,7 @@ sequenceDiagram
         A->>D: Aplicar transicion verificada sin repetir efectos
         F->>A: GET pedido y productos actualizados
     end
-    opt Webhook HTTPS publico configurado
+    opt Webhook: receptor implementado, emision real no confirmada
         W->>A: Evento firmado
         A->>A: Validar checksum
         A->>W: Corroborar transaccion con API privada

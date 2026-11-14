@@ -37,15 +37,13 @@ Los tests no reciben claves Wompi ni AWS. PostgreSQL usa credenciales efímeras 
 - Publicar las ramas y seleccionar development como rama por defecto.
 - Proteger las tres ramas: PR obligatorio, sin force push y check quality requerido.
 - Revisar la política de aprobación y conservar evidencia de las promociones.
-- Verificar la primera ejecución real del workflow; una prueba local no demuestra CI remoto.
+- CI backend verificada: ejecución 20 / SHA `11b5113` correcta. Revisar cada SHA de entrega y CI frontend antes de promover.
 
 ## AWS y rollback futuros
 
-Priorizar una infraestructura funcional de production: Lambda/API Gateway y PostgreSQL
-privado. Staging no tendrá una copia AWS completa sin revisar costos regionales,
+Entrega actual: frontend S3/CloudFront, API Docker en EC2 y PostgreSQL RDS. Staging no tendrá una copia AWS completa sin revisar costos regionales,
 créditos, almacenamiento, red, logs y presupuesto. No se promete que RDS sea gratis.
 
 CD solo después de infraestructura verificada, CI verde y OIDC de mínimo privilegio
-restringido a production. Secretos solo en runtime AWS. Rollback al artefacto/version
-Lambda anterior verificado; migraciones compatibles hacia atrás. No ejecutar down
+restringido a production. Secretos solo en runtime AWS. Rollback a la imagen Docker anterior verificada; migraciones compatibles hacia atrás. No ejecutar down
 sobre producción ni restaurar una DB sin evaluar pérdida de datos.

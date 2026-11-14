@@ -79,7 +79,7 @@ This document separates explicit requirements from optional improvements. The as
 - Backend: NestJS + TypeScript.
 - PostgreSQL + TypeORM; Docker Compose locally.
 - Jest in both apps (do not leave Vite's default Vitest as the only test runner).
-- AWS: S3 + CloudFront for frontend; Lambda + API Gateway for backend; evaluate RDS PostgreSQL for database.
+- AWS: S3 + CloudFront for frontend; Docker on EC2 for backend; RDS PostgreSQL. This approved delivery replaces the initial Lambda/API Gateway proposal.
 - Wompi Sandbox only.
 - Premium cosmetics storefront visual style: beige/blush/rose/cocoa. Product and inventory content should make the stock requirement obvious.
 

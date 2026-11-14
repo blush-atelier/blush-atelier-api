@@ -256,3 +256,42 @@ se consulta nuevamente Wompi para reconciliar su estado actual, pero no se repit
 las escrituras. No existe una tabla adicional de eventos ni cambia el esquema.
 La llegada de un webhook real a AWS y el destino de logs en AWS requieren validación
 operativa aparte; estas pruebas locales no los acreditan.
+
+## Replay firmado sin dashboard
+
+El endpoint público es
+`https://dviblid28pd4o.cloudfront.net/api/payments/wompi/events`.
+Se comprobó que un cuerpo vacío devuelve **401 InvalidWebhook**, sin cookie ni
+`X-Checkout-Request`. Esto acredita enrutamiento/rechazo, no recepción de Wompi.
+
+Puedes probar el receptor usando el identificador Wompi de un pago Sandbox existente
+(`provider_payment_id`, no el UUID interno ni la referencia BA-UUID). No necesitas
+crear otra compra. Desde el backend con sus variables Sandbox en `.env`:
+
+```bash
+npm run build
+# Solo valida configuracion y muestra el plan; no hace red ni cambia datos.
+node --env-file=.env scripts/replay-wompi-event.cjs \
+  --transaction ID_WOMPI_EXISTENTE \
+  --url https://dviblid28pd4o.cloudfront.net/api/payments/wompi/events
+```
+
+**Después de autorizar expresamente la reconciliación del pedido**, ejecuta el mismo
+comando con `--send`. Consulta únicamente el pago existente en Wompi, construye el
+checksum con el secreto de eventos y envía el evento a tu API. Nunca crea cargos.
+La API vuelve a consultar Wompi: no confía en el estado que propone el script.
+No imprime el secreto, firma ni datos del pedido; solo modo y HTTP obtenido.
+
+Espera **200**, consulta SQL de lectura antes/después y revisa los logs. Si el
+seguimiento automático ya confirmó el pago, el replay será `duplicate`: es correcto
+y no debe volver a descontar stock. Un 401 indica revisar ambiente/secreto coincidente;
+un 503 indica revisar disponibilidad del proveedor o persistencia. No cambies el
+estado manualmente en SQL para forzar la prueba. Las pruebas aisladas cubren además
+la transición inicial y el rollback sin modificar RDS.
+
+Este es un evento generado por nuestra herramienta, **no un evento emitido por Wompi**.
+La documentación oficial indica configurar la URL de eventos en el dashboard; sin
+acceso no podemos confirmar esa suscripción ni sustituirla inventando un endpoint de
+configuración. Solicita al responsable del comercio que registre la URL y facilite
+un evento real. El checkout ya consulta el estado por API privada, por lo que su
+confirmación normal no depende de recibir el webhook.

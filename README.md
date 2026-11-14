@@ -1,16 +1,22 @@
 # Blush Atelier API
 
-Backend de la prueba Full Stack: NestJS, TypeScript, PostgreSQL y TypeORM.
-Frontend independiente: [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web).
-Incluye catálogo, carrito de varios productos, cliente, entrega, cotización y una transacción PENDING con reserva atómica de stock.
-La integración Wompi Sandbox está implementada: aprobación y rechazo se comprobaron
-contra UAT mediante adaptadores y API local; la usuaria reportó el recorrido principal correcto; faltan repetir dos correcciones y validar AWS.
-Wompi se usará exclusivamente en Sandbox en todos los ambientes.
+API de la prueba Full Stack: NestJS 11, TypeScript, TypeORM y PostgreSQL.
+Pagos exclusivamente con **Wompi Sandbox**, incluso en AWS.
+
+| Entrega          | URL                                                                        |
+| ---------------- | -------------------------------------------------------------------------- |
+| Tienda           | [Blush Atelier](https://dviblid28pd4o.cloudfront.net/)                     |
+| API pública      | [Catálogo JSON](https://dviblid28pd4o.cloudfront.net/api/products)         |
+| Origen API HTTPS | [API NestJS](https://blush-atelier-api.duckdns.org)                        |
+| Swagger          | [Documentación interactiva](https://dviblid28pd4o.cloudfront.net/api/docs) |
+| OpenAPI          | [Contrato JSON](https://dviblid28pd4o.cloudfront.net/api/docs-json)        |
+| Frontend         | [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web)    |
+| Backend          | [blush-atelier-api](https://github.com/blush-atelier/blush-atelier-api)    |
 
 ## Ejecutar localmente
 
-Requisitos: WSL Ubuntu, Node 22.23.3 (`.nvmrc`) y Docker Compose disponible en WSL.
-Ejecuta desde la raíz del repositorio:
+Requiere Node 22 (`.nvmrc`), npm y Docker Compose. Son dos repositorios independientes.
+Desde esta raíz:
 
 ```bash
 nvm use
@@ -18,62 +24,56 @@ npm ci
 cp .env.example .env
 ```
 
-Completa `.env` así y elige tu usuario y contraseña locales en los dos campos vacíos:
+Completa `.env` con valores locales; elige usuario y contraseña para PostgreSQL:
 
 ```dotenv
 NODE_ENV=development
 PORT=3000
 FRONTEND_ORIGIN=http://localhost:5173
+SWAGGER_ENABLED=false
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5433
 POSTGRES_DB=blush_atelier
 POSTGRES_USER=
 POSTGRES_PASSWORD=
 POSTGRES_SSL=false
+WOMPI_ENABLED=false
 ```
-
-`.env` no se versiona. Luego levanta PostgreSQL, crea las tablas, carga productos y arranca la API:
 
 ```bash
 docker compose up -d db
 docker compose ps
+# Cuando db este healthy:
 npm run local:migrate
 npm run local:seed
 npm run local:dev
 ```
 
-Espera a que `db` aparezca como `healthy` antes de ejecutar la migración.
-Los comandos local:* detectan la IP actual del contenedor en WSL sin modificar .env.
-El seed carga 20 productos reales (MAC, Too Faced, Bloomshell y Atenea) con precios de referencia COP y fotos, además de los 2 ficticios previos; inventario de demostración. Se puede repetir sin reiniciar stock ni precios. [Fuentes del catálogo](src/shared/infrastructure/database/product-catalog.ts). `docker compose down` detiene la BD conservando el volumen.
-[Guía local y solución de errores](docs/development.md).
+API: http://localhost:3000/api/products. Swagger: http://localhost:3000/docs;
+contrato: http://localhost:3000/docs-json. Los comandos `local:*` descubren la IP de
+Docker en WSL. El seed aporta 22 productos de demostración con imágenes y precios
+COP de referencia; repetirlo no reinicia stock. `docker compose down` conserva datos.
+[Solución de problemas](docs/development.md).
 
-## Probar con Swagger
+## Variables de entorno
 
-Abre [http://localhost:3000/docs](http://localhost:3000/docs).
-En desarrollo se mantienen `/docs` y `/docs-json`. En producción Swagger está
-**desactivado por defecto**: solo `SWAGGER_ENABLED=true` publica `/api/docs` y
-`/api/docs-json`, sin modificar las rutas de negocio. Reinicia la API después de
-cambiar la variable; no habilita Swagger en una instancia ya desplegada.
-La documentación no sustituye la autenticación ni las validaciones del checkout.
+`.env` no se versiona. Copia los nombres de `.env.example`, nunca credenciales al README.
 
-Expande un endpoint, pulsa **Try it out** y luego **Execute**. Los productos son públicos; el checkout usa una cookie HttpOnly creada al registrar el cliente.
+| Variables                                                                                             | Uso                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`, `PORT`, `FRONTEND_ORIGIN`                                                                 | Entorno, puerto y único origen frontend autorizado; HTTPS en producción                                                    |
+| `SWAGGER_ENABLED`                                                                                     | Producción: solo el valor exacto `true` publica `/api/docs` y `/api/docs-json`. Desarrollo conserva `/docs` y `/docs-json` |
+| `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_SSL` | Conexión PostgreSQL; producción exige TLS con certificado verificado                                                       |
+| `BASE_FEE_MINOR`, `DELIVERY_FEE_MINOR`                                                                | Tarifas del servidor en centavos enteros                                                                                   |
+| `WOMPI_ENABLED`                                                                                       | `true` activa Sandbox; `false` permite catálogo/checkout sin procesar pagos                                                |
+| `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`                                                               | Llaves de prueba del mismo ambiente                                                                                        |
+| `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`                                                       | Secretos de integridad y eventos, solo backend                                                                             |
+| `WOMPI_API_URL`, `UAT_SANDBOX_URL`                                                                    | Destino Sandbox y alternativa cuando no se define el primero                                                               |
+| `UAT_URL`                                                                                             | Referencia del proveedor; nunca se utiliza como destino de pagos                                                           |
 
-| Método | Endpoint                               | Función                                            |
-| ------ | -------------------------------------- | -------------------------------------------------- |
-| GET    | `/api/products` y `/api/products/{id}` | Catálogo y stock disponible                        |
-| POST   | `/api/customers`                       | Registrar comprador y crear cookie de sesión       |
-| POST   | `/api/deliveries`                      | Guardar entrega para esa sesión                    |
-| POST   | `/api/checkout/quote`                  | Cotizar sin reservar                               |
-| POST   | `/api/transactions`                    | Crear PENDING y reservar con Idempotency-Key       |
-| GET    | `/api/transactions/{id}`               | Reanudar y consultar el estado de la propia compra |
-
-En cada POST del comprador usa `X-Checkout-Request: 1` (no aplica al webhook firmado `/api/payments/wompi/events`). Swagger muestra la cabecera; registra primero
-el cliente para que el navegador guarde la cookie. No introduzcas tarjetas en Swagger. La tarjeta se cifra y tokeniza desde el navegador directamente con Wompi.
-[Ejemplos para probar el flujo](docs/checkout-testing.md).
-
-UUID inválido: 400; producto inexistente: 404; almacenamiento no disponible: 503.
-Contrato OpenAPI: [http://localhost:3000/docs-json](http://localhost:3000/docs-json).
-Swagger ya está configurado; sus rutas no llevan el prefijo `/api`.
+Destinos permitidos: `https://sandbox.wompi.co/v1` y
+`https://api-sandbox.co.uat.wompi.dev/v1`. Credenciales `pub_stagtest`/`prv_stagtest`
+requieren el segundo. Los secretos son opacos: no les agregues prefijos.
 
 ## Arquitectura y modelo de datos
 
@@ -87,19 +87,26 @@ flowchart LR
     W --> Sandbox[Wompi Sandbox]
 ```
 
-Organización por módulo: `domain`, `application` e `infrastructure`.
-Dominio y aplicación no dependen de NestJS ni TypeORM; el controlador traduce Result a HTTP.
-La reserva y la transacción se guardan juntas; una clave repetida no duplica stock.
-Las reservas sin pago vencen en 15 minutos; su liberación se evalúa al cotizar, crear
-o consultar transacciones. Cada pedido conserva sus líneas en `transaction_items`; las tarifas se aplican una sola vez.
-[Arquitectura](docs/architecture.mmd) y [seguridad de pagos](docs/payment-security.md).
+Módulos `products`, `customers`, `deliveries`, `transactions` y `payments`, cada uno
+con `domain`, `application` e `infrastructure`. Dominio y aplicación no importan
+NestJS ni TypeORM. Los casos de uso orquestan puertos; adaptadores Repository y Unit
+of Work se conectan por inyección de dependencias. Los fallos esperados usan ROP:
+`Result<T,E> = { ok: true; value: T } | { ok: false; error: E }`.
 
-`payments/domain` decide transiciones con Result; `application` prepara/verifica pagos
-y procesa eventos; `infrastructure` implementa Wompi, HTTP y persistencia. La llamada
-al proveedor queda fuera del bloqueo DB; la confirmación/liberación de todas las líneas
-y la entrega se guardan atómicamente. Duplicados no repiten escrituras ni el movimiento de stock. El webhook registra
-JSON con correlación, duración y resultado; excluye payload, firmas y datos del cliente.
-[QA del webhook y consultas SQL de lectura](docs/checkout-testing.md#webhook-qa-automatizado-sin-pagos-ni-rds).
+![Modelo PostgreSQL](docs/erd.svg)
+
+| Tabla               | Responsabilidad y relación                                          |
+| ------------------- | ------------------------------------------------------------------- |
+| `products`          | Precio, inventario físico y reservado                               |
+| `customers`         | Contacto y hash de sesión; propietario de entregas/transacciones    |
+| `deliveries`        | Destinatario, dirección y estado de entrega                         |
+| `transactions`      | Referencia, importes, estado, reserva e identificador del proveedor |
+| `transaction_items` | Productos y cantidades del pedido, con precio conservado            |
+
+Disponibilidad = `stock_on_hand - stock_reserved`. Importes: `BIGINT` en PostgreSQL,
+`bigint` para cálculos y strings decimales en JSON; `"8990000"` son 89.900,00 COP.
+Antes de enviar números a Wompi se comprueba el límite entero seguro de JavaScript.
+[ERD Mermaid](docs/erd.mmd) · [Diccionario de datos](docs/data-dictionary.md).
 
 <details>
 <summary>Flujo de checkout y pago Sandbox</summary>
@@ -108,7 +115,7 @@ JSON con correlación, duración y resultado; excluye payload, firmas y datos de
 sequenceDiagram
     participant F as React y casos de uso
     participant A as API NestJS
-    participant D as PostgreSQL
+    participant D as PostgreSQL RDS
     participant W as Wompi Sandbox
     F->>A: Registrar cliente y entrega, sin tarjeta
     A->>D: Contacto, direccion y hash de sesion
@@ -143,7 +150,7 @@ sequenceDiagram
         A->>D: Aplicar transicion verificada sin repetir efectos
         F->>A: GET pedido y productos actualizados
     end
-    opt Webhook HTTPS publico configurado
+    opt Webhook: receptor implementado, emision real no confirmada
         W->>A: Evento firmado
         A->>A: Validar checksum
         A->>W: Corroborar transaccion con API privada
@@ -155,134 +162,90 @@ sequenceDiagram
 [Fuente del diagrama](docs/checkout-sequence.mmd).
 </details>
 
-![Modelo PostgreSQL implementado: productos, clientes, entregas y transacciones](docs/erd.svg)
+## API y seguridad del pago
 
-Disponibilidad = `stock_on_hand - stock_reserved`. Los importes son centavos:
-`BIGINT` en PostgreSQL, `bigint` para cálculos y string en JSON;
-`"8990000"` representa 89.900,00 COP.
-[ERD Mermaid](docs/erd.mmd), [diccionario de datos](docs/data-dictionary.md) y
-[estados del checkout](docs/checkout-model.mmd).
+| Método | Endpoint                                      | Uso                                                          |
+| ------ | --------------------------------------------- | ------------------------------------------------------------ |
+| GET    | `/api/products`, `/api/products/{id}`         | Catálogo, detalle y stock disponible                         |
+| POST   | `/api/customers`                              | Registrar contacto y crear cookie de sesión                  |
+| POST   | `/api/deliveries`                             | Registrar entrega de la sesión                               |
+| POST   | `/api/checkout/quote`                         | Cotizar sin reservar                                         |
+| POST   | `/api/transactions`                           | Crear PENDING y reservar; exige `Idempotency-Key`            |
+| GET    | `/api/transactions/{id}`                      | Consultar pedido propio                                      |
+| GET    | `/api/payments/card-configuration`            | Configuración pública de tokenización                        |
+| POST   | `/api/transactions/{id}/payments`             | Pagar con token, cuotas y aceptaciones                       |
+| POST   | `/api/transactions/{id}/payment-verification` | Consultar estado verificado en Wompi                         |
+| POST   | `/api/payments/wompi/events`                  | Recibir evento firmado, sin cookie ni cabecera del comprador |
 
-## Pruebas
+Los POST del comprador requieren `X-Checkout-Request: 1`; después del registro,
+también la cookie HttpOnly. Swagger documenta la cabecera. No introduzcas tarjetas
+en Swagger ni registres otro cliente para consultar un pedido de tu sesión actual.
+La ruta `payment-session` conserva compatibilidad con intentos del Widget anterior;
+el flujo de la tienda utiliza tokenización propia.
+
+PAN/CVC viven temporalmente en el navegador: Web Crypto genera JWE y lo envía por
+HTTPS directamente a Wompi. La API recibe únicamente el token; nunca PAN/CVC.
+Redux/localStorage conservan solo progreso seguro y referencias. No se guardan ni
+registran tarjetas o secretos. El servidor calcula precios/tarifas/stock y verifica
+ID, referencia, moneda e importe con la API privada; una redirección no prueba pago.
+
+PENDING reserva todas las líneas atómicamente. `payment_submitted_at` se confirma
+antes del cargo: reintentar no crea otro. APPROVED confirma stock y entrega READY;
+DECLINED/ERROR liberan reserva. Timeout conserva PENDING hasta reconciliar.
+Los eventos validan checksum y se aplican bajo bloqueo: un duplicado final no repite
+efectos. Logs JSON contienen correlación, duración y resultado, sin payload ni secretos.
+[Detalles de seguridad](docs/payment-security.md).
+
+## Pruebas y webhook sin dashboard
 
 ```bash
-npm run format:check
 npm run lint
 npm run typecheck
 npm run test:cov
 npm run build
 ```
 
-Resultado medido: **224 pruebas unitarias/HTTP y 42 de integración PostgreSQL correctas**.
-La integración se ejecutó en un contenedor local desechable, con Wompi simulado y sin acceso a RDS.
-Cobertura Jest del backend: sentencias **94,21%**, ramas **90,72%**,
-funciones **87,09%** y líneas **94,20%**; umbral obligatorio configurado en 81%.
-La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
-[Evidencia y limitaciones](docs/verification.md). El frontend mide su cobertura en su propio repositorio.
+Última medición: **229 pruebas unitarias/HTTP, 20 suites**, y **42 pruebas de
+integración PostgreSQL**, estas últimas en un contenedor desechable con Wompi simulado.
+Cobertura: **94,21% sentencias · 90,72% ramas · 87,09% funciones · 94,20% líneas**.
+Jest exige 81% en las cuatro métricas e incluye todo `src`.
 
-## CI/CD y entrega
+[Guía de pruebas](docs/checkout-testing.md) incluye ejecución aislada, rollback,
+idempotencia, consultas SQL de lectura y replay firmado de una transacción existente.
+El replay no crea pagos, pero puede reconciliar el pedido: no se ejecuta en AWS sin
+autorización. Por defecto el comando solo muestra el plan. Sin acceso al dashboard
+no se puede acreditar que Wompi tenga configurada nuestra URL y notifique automáticamente.
 
-Promoción por PR: `feature/* → development → staging → production`.
-Development es local; staging valida; production será la entrega AWS.
-GitHub Actions configura instalación, formato, lint, typecheck, Jest con cobertura,
-integración PostgreSQL y build. [Pipeline](docs/pipeline.md).
+## AWS y CI
 
-Despliegue informado: frontend S3/CloudFront, API Docker en AWS y PostgreSQL RDS.
-[Frontend público](https://dviblid28pd4o.cloudfront.net/) respondió HTTP 200 por HTTPS.
-**URL pública de API/Swagger y configuración efectiva de API/RDS: pendientes de verificación.**
-No se realizaron cambios en producción en esta revisión. El webhook público,
-la ejecución de CI remoto y las protecciones de ramas requieren evidencia aparte.
-[Evidencia y pendientes de entrega](docs/verification.md).
+Frontend: S3/CloudFront. Backend: Docker en EC2 y PostgreSQL RDS con TLS.
+CloudFront enruta `/api/*` al origen de la API y el resto al frontend. Las URLs de
+arriba respondieron HTTP 200; el webhook rechazó un cuerpo sin firma con 401.
+La usuaria confirmó dos pagos Sandbox en AWS; no se ejecutaron nuevos pagos desde estas herramientas.
 
-## Wompi Sandbox: configurar y probar
+`Dockerfile.prod` incluye el certificado CA de RDS. Para reproducir el backend,
+configura el `.env` del servidor, acceso de red privado a RDS y origen frontend HTTPS.
+Solo durante una entrega autorizada:
 
-En el `.env` **del backend**, configura `WOMPI_ENABLED=true` y completa estos nombres
-con las llaves y secretos del ambiente Sandbox de tu comercio:
-
-- `WOMPI_PUBLIC_KEY`: llave de prueba `pub_test_` o `pub_stagtest`.
-- `WOMPI_PRIVATE_KEY`: llave del mismo ambiente, `prv_test_` o `prv_stagtest`.
-- `WOMPI_INTEGRITY_SECRET`: secreto de integridad entregado para ese ambiente, sin modificarlo.
-- `WOMPI_EVENTS_SECRET`: secreto de eventos entregado para ese ambiente, sin modificarlo.
-
-Configura el destino con `WOMPI_API_URL`. Para las credenciales de la prueba:
-
-```dotenv
-UAT_URL=https://api.co.uat.wompi.dev/v1
-UAT_SANDBOX_URL=https://api-sandbox.co.uat.wompi.dev/v1
-WOMPI_API_URL=https://api-sandbox.co.uat.wompi.dev/v1
+```bash
+docker compose -f compose.prod.yml build
+docker compose -f compose.prod.yml run --rm api node scripts/migrate-prod.cjs
+docker compose -f compose.prod.yml up -d
 ```
 
-Sin WOMPI_API_URL se toma UAT_SANDBOX_URL y, si tampoco existe, el Sandbox público.
-UAT_URL queda como referencia: no es el destino activo de esta integración Sandbox.
-Los destinos permitidos son Sandbox público y UAT Sandbox; no se envían llaves a
-URLs arbitrarias. El frontend obtiene la configuración pública desde esta API: ya
-no carga el Widget de compra ni necesita VITE_WOMPI_WIDGET_URL.
+No ejecutar rollback/seed de producción como prueba. Los secretos permanecen en
+runtime del servidor; no se incorporan a imágenes ni al frontend.
 
-No compartas ni versiones los valores. No son el usuario/contraseña del dashboard.
-Reinicia API y frontend después de configurar. Sin habilitar Wompi, catálogo y reservas
-funcionan; el intento de pago devuelve `PaymentNotConfigured`. No se instalaron paquetes
-nuevos; se usa fetch/crypto de Node y Web Crypto del navegador.
+GitHub Actions ejecuta instalación, formato, lint, typecheck, Jest con cobertura,
+integración PostgreSQL y build. Promoción por PR:
+`feature/* → development → staging → production`. No hay despliegue automático.
+CI/CD es un valor agregado, no un requisito de la rúbrica.
+[Pipeline existente](docs/pipeline.md) · [Evidencia](docs/verification.md)
+· [Requisitos](docs/requirements.md).
 
-| Método | Endpoint                                      | Uso                                                                             |
-| ------ | --------------------------------------------- | ------------------------------------------------------------------------------- |
-| GET    | `/api/payments/card-configuration`            | Llave pública de tokenización y condiciones de aceptación; no contiene secretos |
-| POST   | `/api/transactions/{id}/payments`             | Enviar token de tarjeta, cuotas y aceptaciones para un PENDING propio           |
-| POST   | `/api/transactions/{id}/payment-verification` | Consultar el resultado verificado; `{}` o ID Wompi como pista                   |
-| POST   | `/api/payments/wompi/events`                  | Webhook firmado; no requiere cookie del comprador                               |
-
-Los POST del comprador requieren cookie y `X-Checkout-Request: 1`. Nunca envíes
-PAN/CVC, precios ni un supuesto estado aprobado. Swagger rechaza campos adicionales.
-La ruta anterior `payment-session` se conserva para pedidos iniciados con el Widget;
-un pedido que ya inició ese flujo no se puede volver a cobrar por la nueva ruta.
-
-Flujo: carrito → **Pagar con tarjeta de crédito** → datos y entrega → resumen
-Backdrop y tarjeta → **Registrar pago** → PENDING persistido → envío a Wompi → estado verificado/stock.
-La tokenización previa al cargo no mueve dinero. Visa/Mastercard se detectan en el
-navegador; número/CVC solo viven en el formulario y se limpian al iniciar el pago o cerrar.
-Web Crypto genera JWE RSA-OAEP-256 + A256GCM y envía el cifrado directamente a Wompi.
-La API entrega la llave pública porque UAT no permite leer ese endpoint por CORS.
-El token se mantiene en memoria, fuera de Redux/localStorage, hasta enviar el pago.
-Después de F5, un pedido no enviado pide la tarjeta de nuevo; uno enviado solo consulta.
-
-Antes del POST remoto se confirma `payment_submitted_at` bajo bloqueo PostgreSQL.
-Un duplicado nunca repite el cargo. Aprobación confirma stock y entrega READY;
-rechazo/error liberan reserva. Timeout conserva PENDING y stock reservado: no implica
-rechazo. Si se pierde el ID del proveedor, el webhook público debe reconciliarlo;
-no se inventa el resultado ni se hace otro cargo. Registra una URL HTTPS que llegue a
-`/api/payments/wompi/events` en el dashboard Sandbox; localhost no recibe eventos.
-
-Prueba únicamente con los [datos oficiales de Sandbox](https://docs.wompi.co/docs/colombia/datos-de-prueba-en-sandbox/):
-Visa `4242…4242` aprueba y `4111…1111` declina, fecha futura y CVC de tres dígitos.
-No se precargan esos datos en la tienda. Para otro intento usa una nueva selección
-solo después de conocer el resultado final. Las credenciales UAT pueden limitar las
-tarjetas de prueba admitidas.
-
-Verificado contra UAT Sandbox con los adaptadores del frontend y API/PostgreSQL local
-**aislada**: APPROVED (una unidad menos), DECLINED (stock conservado) y PENDING previo.
-No acredita interacción de navegador: el arranque de Chrome fue bloqueado por la herramienta.
-ERROR, timeouts, concurrencia y webhook duplicado están cubiertos con proveedor simulado;
-**webhook público real, revisión visual de esta iteración y configuración efectiva de AWS permanecen pendientes de verificación**.
-
-Documentación oficial: [tarjetas/JWE](https://docs.wompi.co/docs/colombia/metodos-de-pago/),
-[aceptaciones](https://docs.wompi.co/docs/colombia/tokens-de-aceptacion/) y
-[eventos](https://docs.wompi.co/docs/colombia/eventos/).
-
-### Comprobar pago y stock con Swagger
-
-Usa `http://localhost:3000/docs` en el mismo navegador y host de la compra. No registres
-otro cliente: reemplazarías la cookie de esa sesión. Copia el UUID del pedido (la
-referencia es `BA-UUID`). Consulta `GET /api/transactions/{id}`, ejecuta
-`POST /api/transactions/{id}/payment-verification` con `{}` y cabecera
-`X-Checkout-Request: 1`, y vuelve a consultar la transacción y `GET /api/products/{id}`.
-No existe un endpoint del comprador para imponer APPROVED: se obtiene de Wompi.
-
-Para 10 unidades iniciales y una compra de 2: disponible 10 → PENDING 8 → APPROVED 8,
-o DECLINED/ERROR 10. PENDING ya reserva unidades; aprobación descuenta el stock físico
-una sola vez y libera su contador de reserva. La API pública muestra disponible,
-no los contadores internos. La consulta por referencia en WEB también exige la sesión
-activa; no revela pedidos de otros compradores ni reemplaza el carrito.
-
-Pruebas manuales reportadas por la usuaria: sesión vencida, aprobación/rechazo,
-recarga/desconexión y límites de doble clic/stock correctos. Los hallazgos de titular
-numérico y acciones intermitentes se corrigieron en WEB; repetir esos dos casos.
-[Evidencia, pendientes y estimación de rúbrica](docs/verification.md).
+Limitaciones conocidas: no se confirmó un webhook emitido por Wompi; el receptor
+firmado e idempotente se validó con proveedor simulado y el endpoint público rechaza
+firmas inválidas. El checkout confirma pagos mediante consulta privada del backend.
+Firefox/Safari no se probaron. CloudFront aún convierte globalmente errores 403/404
+en HTML con HTTP 200; debe restringirse el fallback SPA al origen S3 para preservar
+los errores de `/api/*`. No se cambiaron recursos AWS en esta revisión.
