@@ -172,10 +172,10 @@ PAN/CVC, precios ni un supuesto estado aprobado. Swagger rechaza campos adiciona
 La ruta anterior `payment-session` se conserva para pedidos iniciados con el Widget;
 un pedido que ya inició ese flujo no se puede volver a cobrar por la nueva ruta.
 
-Flujo: carrito → **Pagar con tarjeta de crédito** → tarjeta y entrega → resumen
-Backdrop → pagar → PENDING persistido → envío a Wompi → estado verificado/stock.
-La tokenización previa al resumen no mueve dinero. Visa/Mastercard se detectan en el
-navegador; número/CVC solo viven en el formulario y se limpian al preparar el resumen o cerrar.
+Flujo: carrito → **Pagar con tarjeta de crédito** → datos y entrega → resumen
+Backdrop y tarjeta → **Registrar pago** → PENDING persistido → envío a Wompi → estado verificado/stock.
+La tokenización previa al cargo no mueve dinero. Visa/Mastercard se detectan en el
+navegador; número/CVC solo viven en el formulario y se limpian al iniciar el pago o cerrar.
 Web Crypto genera JWE RSA-OAEP-256 + A256GCM y envía el cifrado directamente a Wompi.
 La API entrega la llave pública porque UAT no permite leer ese endpoint por CORS.
 El token se mantiene en memoria, fuera de Redux/localStorage, hasta enviar el pago.
@@ -203,3 +203,18 @@ ERROR, timeouts, concurrencia y webhook duplicado están cubiertos con proveedor
 Documentación oficial: [tarjetas/JWE](https://docs.wompi.co/docs/colombia/metodos-de-pago/),
 [aceptaciones](https://docs.wompi.co/docs/colombia/tokens-de-aceptacion/) y
 [eventos](https://docs.wompi.co/docs/colombia/eventos/).
+
+### Comprobar pago y stock con Swagger
+
+Usa `http://localhost:3000/docs` en el mismo navegador y host de la compra. No registres
+otro cliente: reemplazarías la cookie de esa sesión. Copia el UUID del pedido (la
+referencia es `BA-UUID`). Consulta `GET /api/transactions/{id}`, ejecuta
+`POST /api/transactions/{id}/payment-verification` con `{}` y cabecera
+`X-Checkout-Request: 1`, y vuelve a consultar la transacción y `GET /api/products/{id}`.
+No existe un endpoint del comprador para imponer APPROVED: se obtiene de Wompi.
+
+Para 10 unidades iniciales y una compra de 2: disponible 10 → PENDING 8 → APPROVED 8,
+o DECLINED/ERROR 10. PENDING ya reserva unidades; aprobación descuenta el stock físico
+una sola vez y libera su contador de reserva. La API pública muestra disponible,
+no los contadores internos. La consulta por referencia en WEB también exige la sesión
+activa; no revela pedidos de otros compradores ni reemplaza el carrito.
