@@ -150,8 +150,9 @@ WOMPI_API_URL=https://api-sandbox.co.uat.wompi.dev/v1
 Sin WOMPI_API_URL se toma UAT_SANDBOX_URL y, si tampoco existe, el Sandbox público.
 UAT_URL queda como referencia: no es el destino activo de esta integración Sandbox.
 Los destinos permitidos son Sandbox público y UAT Sandbox; no se envían llaves a
-URLs arbitrarias. El Widget público no queda certificado para UAT por cambiar esta URL:
-si la prueba proporciona un Widget específico, hay que configurar su dirección oficial.
+URLs arbitrarias. El frontend usa el Widget UAT `https://checkout.co.uat.wompi.dev/widget.js`
+con llaves stagtest; puede configurarse mediante VITE_WOMPI_WIDGET_URL. Cambiar
+la API sin cambiar el Widget mezcla ambientes.
 
 No compartas ni versiones los valores. No son el usuario/contraseña del dashboard.
 Reinicia API y frontend después de configurar. Sin habilitar Wompi, catálogo y reservas
