@@ -16,6 +16,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
+COPY certs/global-bundle.pem ./certs/global-bundle.pem
+ENV NODE_EXTRA_CA_CERTS=/app/certs/global-bundle.pem
 COPY scripts/migrate-prod.cjs ./scripts/migrate-prod.cjs
 
 USER node
