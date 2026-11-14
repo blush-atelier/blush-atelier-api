@@ -16,8 +16,11 @@ flowchart LR
         DI[Modulos NestJS: DI por tokens] -. conectan .-> UC
         DI -. conectan .-> ORM
         DI -. conectan .-> WOMPI
-        ORM --> DB[(PostgreSQL)]
+        ORM --> DB[(PostgreSQL RDS privado)]
     end
-    HTTP --> CTRL
+    EDGE[CloudFront HTTPS] -->|SPA y assets| STATIC[S3: SPA React]
+    EDGE -->|/api/*| ORIGIN[DuckDNS HTTPS: EC2 y Docker]
+    HTTP --> EDGE
+    ORIGIN --> CTRL
     CARD --> PROVIDER[Wompi Sandbox: tokenizacion HTTPS]
     WOMPI --> PROVIDER

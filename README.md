@@ -3,14 +3,15 @@
 API de la prueba Full Stack: NestJS 11, TypeScript, TypeORM y PostgreSQL.
 Pagos exclusivamente con **Wompi Sandbox**, incluso en AWS.
 
-| Entrega     | URL                                                                        |
-| ----------- | -------------------------------------------------------------------------- |
-| Tienda      | [Blush Atelier](https://dviblid28pd4o.cloudfront.net/)                     |
-| API pública | [Catálogo JSON](https://dviblid28pd4o.cloudfront.net/api/products)         |
-| Swagger     | [Documentación interactiva](https://dviblid28pd4o.cloudfront.net/api/docs) |
-| OpenAPI     | [Contrato JSON](https://dviblid28pd4o.cloudfront.net/api/docs-json)        |
-| Frontend    | [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web)    |
-| Backend     | [blush-atelier-api](https://github.com/blush-atelier/blush-atelier-api)    |
+| Entrega          | URL                                                                        |
+| ---------------- | -------------------------------------------------------------------------- |
+| Tienda           | [Blush Atelier](https://dviblid28pd4o.cloudfront.net/)                     |
+| API pública      | [Catálogo JSON](https://dviblid28pd4o.cloudfront.net/api/products)         |
+| Origen API HTTPS | [API NestJS](https://blush-atelier-api.duckdns.org)                        |
+| Swagger          | [Documentación interactiva](https://dviblid28pd4o.cloudfront.net/api/docs) |
+| OpenAPI          | [Contrato JSON](https://dviblid28pd4o.cloudfront.net/api/docs-json)        |
+| Frontend         | [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web)    |
+| Backend          | [blush-atelier-api](https://github.com/blush-atelier/blush-atelier-api)    |
 
 ## Ejecutar localmente
 
@@ -114,7 +115,7 @@ Antes de enviar números a Wompi se comprueba el límite entero seguro de JavaSc
 sequenceDiagram
     participant F as React y casos de uso
     participant A as API NestJS
-    participant D as PostgreSQL
+    participant D as PostgreSQL RDS
     participant W as Wompi Sandbox
     F->>A: Registrar cliente y entrega, sin tarjeta
     A->>D: Contacto, direccion y hash de sesion
@@ -149,7 +150,7 @@ sequenceDiagram
         A->>D: Aplicar transicion verificada sin repetir efectos
         F->>A: GET pedido y productos actualizados
     end
-    opt Webhook HTTPS publico configurado
+    opt Webhook: receptor implementado, emision real no confirmada
         W->>A: Evento firmado
         A->>A: Validar checksum
         A->>W: Corroborar transaccion con API privada
@@ -220,7 +221,7 @@ no se puede acreditar que Wompi tenga configurada nuestra URL y notifique autom�
 Frontend: S3/CloudFront. Backend: Docker en EC2 y PostgreSQL RDS con TLS.
 CloudFront enruta `/api/*` al origen de la API y el resto al frontend. Las URLs de
 arriba respondieron HTTP 200; el webhook rechazó un cuerpo sin firma con 401.
-Eso no reemplaza una prueba de compra completa en AWS.
+La usuaria confirmó dos pagos Sandbox en AWS; no se ejecutaron nuevos pagos desde estas herramientas.
 
 `Dockerfile.prod` incluye el certificado CA de RDS. Para reproducir el backend,
 configura el `.env` del servidor, acceso de red privado a RDS y origen frontend HTTPS.
@@ -237,6 +238,14 @@ runtime del servidor; no se incorporan a imágenes ni al frontend.
 
 GitHub Actions ejecuta instalación, formato, lint, typecheck, Jest con cobertura,
 integración PostgreSQL y build. Promoción por PR:
-`feature/* → development → staging → production`. No hay despliegue automático
-habilitado. [Pipeline](docs/pipeline.md) · [Evidencia y pendientes](docs/verification.md)
+`feature/* → development → staging → production`. No hay despliegue automático.
+CI/CD es un valor agregado, no un requisito de la rúbrica.
+[Pipeline existente](docs/pipeline.md) · [Evidencia](docs/verification.md)
 · [Requisitos](docs/requirements.md).
+
+Limitaciones conocidas: no se confirmó un webhook emitido por Wompi; el receptor
+firmado e idempotente se validó con proveedor simulado y el endpoint público rechaza
+firmas inválidas. El checkout confirma pagos mediante consulta privada del backend.
+Firefox/Safari no se probaron. CloudFront aún convierte globalmente errores 403/404
+en HTML con HTTP 200; debe restringirse el fallback SPA al origen S3 para preservar
+los errores de `/api/*`. No se cambiaron recursos AWS en esta revisión.
