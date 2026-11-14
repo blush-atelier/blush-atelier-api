@@ -33,10 +33,10 @@ erDiagram
         uuid customer_id FK
         varchar recipient_name
         varchar recipient_phone
-        text address_line
+        varchar address_line
         varchar city
         varchar region
-        varchar country_code
+        char country_code
         varchar status
         timestamptz created_at
         timestamptz updated_at
@@ -45,7 +45,7 @@ erDiagram
         uuid id PK
         varchar reference UK
         varchar idempotency_key "UNIQUE con customer_id"
-        varchar request_hash
+        char request_hash
         uuid product_id FK
         uuid customer_id FK
         uuid delivery_id FK,UK

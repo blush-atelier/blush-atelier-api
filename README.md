@@ -4,7 +4,7 @@ Backend de la prueba Full Stack: NestJS, TypeScript, PostgreSQL y TypeORM.
 Frontend independiente: [blush-atelier-web](https://github.com/blush-atelier/blush-atelier-web).
 Incluye catálogo, carrito de varios productos, cliente, entrega, cotización y una transacción PENDING con reserva atómica de stock.
 La integración Wompi Sandbox está implementada: aprobación y rechazo se comprobaron
-contra UAT mediante adaptadores y API local; faltan E2E en navegador y validación AWS.
+contra UAT mediante adaptadores y API local; la usuaria reportó el recorrido principal correcto; faltan repetir dos correcciones y validar AWS.
 Wompi se usará exclusivamente en Sandbox en todos los ambientes.
 
 ## Ejecutar localmente
@@ -44,7 +44,7 @@ npm run local:dev
 
 Espera a que `db` aparezca como `healthy` antes de ejecutar la migración.
 Los comandos local:* detectan la IP actual del contenedor en WSL sin modificar .env.
-El seed carga 20 productos reales (MAC, Too Faced, Bloomshell y Atenea) con precios de referencia COP y fotos, además de los 2 ficticios previos; inventario de demostración. Se puede repetir sin reiniciar stock ni precios. [Fuentes](docs/decisions-and-interview-notes.md#catálogo-de-demostración--13112026). `docker compose down` detiene la BD conservando el volumen.
+El seed carga 20 productos reales (MAC, Too Faced, Bloomshell y Atenea) con precios de referencia COP y fotos, además de los 2 ficticios previos; inventario de demostración. Se puede repetir sin reiniciar stock ni precios. [Fuentes del catálogo](src/shared/infrastructure/database/product-catalog.ts). `docker compose down` detiene la BD conservando el volumen.
 [Guía local y solución de errores](docs/development.md).
 
 ## Probar con Swagger
@@ -86,12 +86,66 @@ Dominio y aplicación no dependen de NestJS ni TypeORM; el controlador traduce R
 La reserva y la transacción se guardan juntas; una clave repetida no duplica stock.
 Las reservas sin pago vencen en 15 minutos; su liberación se evalúa al cotizar, crear
 o consultar transacciones. Cada pedido conserva sus líneas en `transaction_items`; las tarifas se aplican una sola vez.
-[Decisiones y notas para entrevista](docs/decisions-and-interview-notes.md).
+[Arquitectura](docs/architecture.mmd) y [seguridad de pagos](docs/payment-security.md).
 
 `payments/domain` decide transiciones con Result; `application` prepara/verifica pagos
 y procesa eventos; `infrastructure` implementa Wompi, HTTP y persistencia. La llamada
 al proveedor queda fuera del bloqueo DB; la confirmación/liberación de todas las líneas
 y la entrega se guardan atómicamente. Duplicados no repiten el movimiento de stock.
+
+<details>
+<summary>Flujo de checkout y pago Sandbox</summary>
+
+```mermaid
+sequenceDiagram
+    participant F as React y casos de uso
+    participant A as API NestJS
+    participant D as PostgreSQL
+    participant W as Wompi Sandbox
+    F->>A: Registrar cliente y entrega, sin tarjeta
+    A->>D: Contacto, direccion y hash de sesion
+    A-->>F: IDs y cookie HttpOnly
+    F->>A: Cotizar carrito
+    A-->>F: Productos + tarifa base + envio, sin reservar
+    Note over F: 01 Datos, 02 Resumen y tarjeta en Backdrop
+    F->>A: GET configuracion publica de tarjeta
+    A->>W: Llave publica JWE y condiciones de aceptacion
+    A-->>F: Configuracion publica, sin secretos
+    F->>W: POST tokens/cards, JWE por HTTPS
+    W-->>F: Token efimero, fuera de Redux y localStorage
+    F->>A: POST transactions, total mostrado e Idempotency-Key
+    A->>D: Transaccion atomica: reservar lineas y crear PENDING
+    A-->>F: UUID y referencia PENDING
+    Note over F: 03 Procesando pago
+    F->>A: POST transactions/id/payments, token y aceptaciones
+    A->>D: Confirmar payment_submitted_at bajo bloqueo
+    Note over A,W: Llamada remota fuera del bloqueo DB
+    A->>W: POST transactions, firma e importe del servidor
+    alt Respuesta valida
+        W-->>A: ID y estado del proveedor
+        A->>D: Validar y persistir resultado, stock y entrega atomicamente
+        A-->>F: Solicitud aceptada
+    else Timeout o resultado desconocido
+        A-->>F: Error controlado, conservar PENDING y reserva
+    end
+    loop Mientras PENDING y visible, cada 2.5 s y al reconectar
+        F->>A: POST payment-verification
+        A->>W: GET transaccion con llave privada
+        W-->>A: Estado, referencia, importe y moneda
+        A->>D: Aplicar transicion verificada sin repetir efectos
+        F->>A: GET pedido y productos actualizados
+    end
+    opt Webhook HTTPS publico configurado
+        W->>A: Evento firmado
+        A->>A: Validar checksum
+        A->>W: Corroborar transaccion con API privada
+        A->>D: Confirmar o liberar stock y entrega una sola vez
+    end
+    Note over F: Resultado final y regreso al producto o tienda
+```
+
+[Fuente del diagrama](docs/checkout-sequence.mmd).
+</details>
 
 ![Modelo PostgreSQL implementado: productos, clientes, entregas y transacciones](docs/erd.svg)
 
@@ -99,7 +153,7 @@ Disponibilidad = `stock_on_hand - stock_reserved`. Los importes son centavos:
 `BIGINT` en PostgreSQL, `bigint` para cálculos y string en JSON;
 `"8990000"` representa 89.900,00 COP.
 [ERD Mermaid](docs/erd.mmd), [diccionario de datos](docs/data-dictionary.md) y
-[modelo futuro de checkout y relaciones](docs/checkout-model.mmd).
+[estados del checkout](docs/checkout-model.mmd).
 
 ## Pruebas
 
@@ -111,7 +165,7 @@ npm run test:cov
 npm run build
 ```
 
-Resultado medido: **206 pruebas unitarias/HTTP y 39 de integración PostgreSQL correctas**.
+Resultado medido: **207 pruebas unitarias/HTTP y 40 de integración PostgreSQL correctas**.
 Cobertura Jest del backend: sentencias **93,71%**, ramas **90,04%**,
 funciones **85,94%** y líneas **93,67%**; umbral obligatorio configurado en 81%.
 La integración usa una base desechable separada: [cómo ejecutarla](docs/development.md#pruebas-de-integración).
@@ -129,7 +183,7 @@ Primero se evaluarán costos; no se crean tres infraestructuras completas.
 **URLs públicas de API y Swagger: pendientes de despliegue y verificación.**
 PostgreSQL en Docker y los comandos locales están verificados; el contenedor de la API,
 la primera ejecución de CI remoto y las protecciones de ramas siguen pendientes.
-[Checklist de aceptación](docs/acceptance-checklist.md).
+[Evidencia y pendientes de entrega](docs/verification.md).
 
 ## Wompi Sandbox: configurar y probar
 
@@ -218,3 +272,8 @@ o DECLINED/ERROR 10. PENDING ya reserva unidades; aprobación descuenta el stock
 una sola vez y libera su contador de reserva. La API pública muestra disponible,
 no los contadores internos. La consulta por referencia en WEB también exige la sesión
 activa; no revela pedidos de otros compradores ni reemplaza el carrito.
+
+Pruebas manuales reportadas por la usuaria: sesión vencida, aprobación/rechazo,
+recarga/desconexión y límites de doble clic/stock correctos. Los hallazgos de titular
+numérico y acciones intermitentes se corrigieron en WEB; repetir esos dos casos.
+[Evidencia, pendientes y estimación de rúbrica](docs/verification.md).

@@ -470,3 +470,32 @@ it('un fallo al insertar la segunda línea revierte cabecera y stock de todos lo
     await source.query('DROP FUNCTION reject_basket_line_test()');
   }
 });
+
+it('renovar sesión permite otra compra sin recuperar acceso ni borrar la reserva anterior', async () => {
+  const first = await session();
+  const firstDelivery = await delivery(first.agent);
+  const original = await pending(
+    first.agent,
+    firstDelivery,
+    'before-expiry-001',
+  ).expect(201);
+  await source.query(
+    "UPDATE customers SET session_expires_at=now()-interval '1 minute' WHERE id=$1",
+    [first.customerId],
+  );
+  await first.agent.get(`/api/transactions/${original.body.id}`).expect(401);
+  const renewed = await first.agent
+    .post('/api/customers')
+    .set('X-Checkout-Request', '1')
+    .send({
+      fullName: 'Ana Prueba',
+      email: 'ana@example.com',
+      phone: '+573001234567',
+    })
+    .expect(201);
+  expect(renewed.body.id !== first.customerId).toBe(true);
+  await first.agent.get(`/api/transactions/${original.body.id}`).expect(404);
+  const nextDelivery = await delivery(first.agent);
+  await pending(first.agent, nextDelivery, 'after-expiry-001').expect(201);
+  expect(await stock()).toMatchObject({ stock_on_hand: 20, stock_reserved: 2 });
+});

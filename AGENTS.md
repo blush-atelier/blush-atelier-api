@@ -1,9 +1,11 @@
 # Project instructions — Blush Atelier
 
 ## Mission
+
 Build the assessment described in `docs/requirements.md`. Treat the supplied assessment PDF as the source of truth. Do not add Vercel or requirements that are not in the PDF. Deployment target: AWS only.
 
 ## Non-negotiable assessment rules
+
 - Frontend: SPA using React or Vue only; this project uses React + TypeScript + Vite.
 - Redux or Vuex is mandatory; use Redux Toolkit.
 - Backend: JavaScript/TypeScript with NestJS, Grappe or Sinatra; this project uses NestJS + TypeScript.
@@ -18,24 +20,33 @@ Build the assessment described in `docs/requirements.md`. Treat the supplied ass
 - Include DB model in README and public Swagger URL or Postman collection.
 
 ## Architecture boundaries (strict)
+
 ### Domain
+
 - Entities, value objects, domain policies, domain errors, and port interfaces.
 - No imports from NestJS, TypeORM, React, Redux, Wompi SDK/client, AWS SDK, or HTTP frameworks.
 - No persistence decorators or provider-specific types.
+
 ### Application
+
 - Use cases/application services, input/output DTOs, orchestration, and typed Result.
 - Depend on domain abstractions/ports, never concrete infrastructure adapters.
 - Keep business rules here or in domain objects, never in controllers.
+
 ### Infrastructure
+
 - Nest controllers/modules, DI wiring, TypeORM entities/migrations/repositories, Wompi adapter, AWS adapters, HTTP clients, config, logging.
 - Infrastructure implements domain ports.
 - Map ORM models to domain entities; do not leak ORM entities into domain/application.
+
 ### Presentation
+
 - React pages/components call typed API clients and Redux actions/thunks.
 - Components do not contain payment orchestration or business rules.
 - Redux state contains only safe checkout progress and backend references/status.
 
 ## ROP conventions
+
 - Use a discriminated union: `Result<T, E> = { ok: true; value: T } | { ok: false; error: E }`.
 - Expected business failures are typed Results, not exceptions.
 - Compose/branch on Results explicitly; avoid deeply nested try/catch.
@@ -44,6 +55,7 @@ Build the assessment described in `docs/requirements.md`. Treat the supplied ass
 - Never silently swallow errors.
 
 ## Payment and security rules
+
 - Sandbox only. Use environment variables for all keys and secrets.
 - Never commit `.env`, private keys, event secrets, integrity secrets, access tokens, passwords, or credentials.
 - Keep Wompi private key and integrity/event secrets on the backend only. Public key may be used in frontend only where the documented integration requires it.
@@ -59,14 +71,16 @@ Build the assessment described in `docs/requirements.md`. Treat the supplied ass
 - Persist only safe resumable checkout data in localStorage (e.g. product ID, backend transaction ID, step, non-sensitive status). Never store PAN/CVV or secrets there.
 
 ## Required business flow
+
 1. Product page: product information and stock.
 2. Credit card + delivery information.
 3. Payment summary: product amount + base fee + delivery fee.
 4. Payment result.
 5. Return to product page with refreshed stock.
-Create a backend PENDING transaction before payment processing. Update status from verified provider result. Assign delivery/product and update stock consistently with the agreed business rules.
+   Create a backend PENDING transaction before payment processing. Update status from verified provider result. Assign delivery/product and update stock consistently with the agreed business rules.
 
 ## Data model and diagrams
+
 - Design the schema before implementing repositories.
 - Include at minimum products/stock, customers, deliveries, and transactions.
 - Add appropriate constraints, indexes, foreign keys, timestamps, and transaction status enum/check.
@@ -76,6 +90,7 @@ Create a backend PENDING transaction before payment processing. Update status fr
 - Keep the diagram synchronized with migrations/entities; update it when schema changes.
 
 ## Testing and quality gates
+
 - Jest in both apps; do not substitute Vitest.
 - Add meaningful unit tests for domain policies, use cases, adapters where practical, API validation, and React components/state/API behavior.
 - Test success, validation failures, provider declines/errors, duplicate webhook, refresh/resume, insufficient stock, duplicate requests, and race/oversell behavior.
@@ -84,6 +99,7 @@ Create a backend PENDING transaction before payment processing. Update status fr
 - Add tests while implementing each vertical slice, not at the end.
 
 ## UI direction
+
 - Visual identity: premium cosmetics / inventory boutique, palette of warm beige, blush pink, rose, cocoa and restrained metallic accents.
 - Polished, memorable, mobile-first UI. Avoid generic admin-template appearance.
 - Product imagery must load efficiently; use responsive image sizing, sensible formats, dimensions/aspect ratios, lazy loading below the fold, and graceful fallbacks.
@@ -92,15 +108,17 @@ Create a backend PENDING transaction before payment processing. Update status fr
 - A small inventory/operations accent can make the store feel credible, but do not let an optional dashboard delay the required checkout.
 
 ## Code comments and explainability
+
 - Write concise, natural comments only where they explain a non-obvious decision, invariant, security boundary, or tricky flow.
 - Comments should sound like a developer explaining why/how, not generic AI narration.
 - Do not comment every line or restate the code.
-- For every important module/use case, provide a short plain-language explanation in `docs/decisions-and-interview-notes.md`: what it does, why it exists, how data flows, and likely interview questions.
+- Explain important modules/use cases briefly in README. If `docs/decisions-and-interview-notes.md` exists locally, keep those interview notes current; the owner keeps that file untracked.
 - Do not implement concepts the candidate cannot explain. When using an unfamiliar library/pattern, explain it and ask for confirmation before adding unnecessary complexity.
 
 ## Workflow for Codex
+
 1. Read this file and all relevant skills before coding.
-2. Read `docs/requirements.md` and `docs/acceptance-checklist.md`.
+2. Read `docs/requirements.md`, README and published testing/security documentation where present. Use `docs/acceptance-checklist.md` if available locally; the owner keeps it untracked.
 3. Inspect repository and toolchain; do not overwrite existing work.
 4. Propose a small implementation plan for the current vertical slice.
 5. Implement one slice at a time; summarize changed files and design decisions.
@@ -111,21 +129,24 @@ Create a backend PENDING transaction before payment processing. Update status fr
 10. Never put credentials in source code, README, screenshots, commits, or logs.
 
 ## Delivery definition
+
 - Working public AWS frontend URL and API URL.
 - Public GitHub repository with no secrets.
 - Complete README with setup, env var names (not values), architecture, ERD/data model, API docs, test commands and measured coverage, deployment steps and URLs.
 - Working end-to-end Sandbox checkout and stock update.
 - Frontend and backend Jest coverage each >80%.
-- Acceptance checklist completed with evidence.
+- Acceptance evidence recorded in README/testing documentation; a local untracked checklist may supplement it.
 
 ## Two-repository organization
+
 This repository is independent: frontend React or backend NestJS. The sibling repository is linked via README and API contracts. Never require a monorepo. AWS only; do not deploy to Vercel.
 
 ## Backend repo specific
+
 Generate `docs/erd.mmd` and a rendered ERD if possible. Maintain migrations, seeds, Swagger and architecture diagrams. Use Repository/Adapter/Dependency Injection patterns. Strategy only when there are real alternative rules; do not overengineer.
 
-
 ## GitHub Actions CI/CD (project value-add, not an explicit rubric item)
+
 - GitHub organization: `blush-atelier`; independent public repositories: `blush-atelier-web` (frontend) and `blush-atelier-api` (backend).
 - On pull requests and pushes to development, staging and production, run npm ci, lint, TypeScript check, Jest with coverage thresholds >80%, and build. Configure commands against actual package.json scripts; never invent passing results.
 - Deploy to AWS only after CI passes on production and AWS infrastructure is verified. Frontend: S3/CloudFront. Backend: Lambda/API Gateway.
@@ -134,6 +155,7 @@ Generate `docs/erd.mmd` and a rendered ERD if possible. Maintain migrations, see
 - Document pipeline behavior and status in README.
 
 ## Approved branch and environment policy
+
 - Permanent branches: development (local), staging (validation), production (AWS delivery). Short feature/* branches.
 - Promote by PR: feature/* -> development -> staging -> production. Wompi Sandbox in every environment.
 - Evaluate costs before adding AWS environments; prioritize one functional production infrastructure.

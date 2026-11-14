@@ -440,3 +440,8 @@ coverage/
 /postgres-data/
 *.dump
 *.backup
+
+# Local project review notes (kept on disk, not published)
+/docs/acceptance-checklist.md
+/docs/decisions-and-interview-notes.md
+/docs/delivery-audit.md

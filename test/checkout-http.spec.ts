@@ -399,3 +399,32 @@ it('normaliza email desde la frontera HTTP antes de validar', async () => {
     email: 'ana@example.com',
   });
 });
+
+it('una sesión vencida se reemplaza al registrar una nueva compra sin reutilizar la identidad anterior', async () => {
+  const { agent, response } = await session();
+  for (const row of sessions.values()) row.expiresAt = new Date(0);
+  await agent
+    .post('/api/deliveries')
+    .set('X-Checkout-Request', '1')
+    .send(deliveryInput)
+    .expect(401);
+  const renewed = await agent
+    .post('/api/customers')
+    .set('X-Checkout-Request', '1')
+    .send({
+      fullName: 'Ana Prueba',
+      email: 'ana@example.com',
+      phone: '+573001234567',
+    })
+    .expect(201);
+  expect(renewed.body.id !== response.body.id).toBe(true);
+  expect(
+    String(renewed.headers['set-cookie']) !==
+      String(response.headers['set-cookie']),
+  ).toBe(true);
+  await agent
+    .post('/api/deliveries')
+    .set('X-Checkout-Request', '1')
+    .send(deliveryInput)
+    .expect(201);
+});
