@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="1650" viewBox="0 0 1270 1650" role="img" aria-labelledby="title desc">
+<title id="title">Blush Atelier: modelo PostgreSQL con carrito múltiple</title>
+<desc id="desc">Representación del modelo de docs/erd.mmd: cinco tablas con claves, relaciones y snapshots monetarios por línea.</desc>
+<rect width="100%" height="100%" fill="#faf6f2"/>
+<text x="20" y="42" font-family="sans-serif" font-size="25" fill="#352c30">Blush Atelier · PostgreSQL · carrito y pagos Sandbox</text>
+<text x="20" y="78" font-family="sans-serif" font-size="15" fill="#76515d">Una transacción contiene varias líneas. Cada línea conserva cantidad y precio acordados.</text>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#76515d"/></marker></defs>
+<path d="M650 190 H610 V940 H600" fill="none" stroke="#76515d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="485" y="810" font-family="sans-serif" font-size="12" fill="#76515d">cliente → pedidos</text>
+<path d="M940 445 V550" fill="none" stroke="#76515d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="960" y="505" font-family="sans-serif" font-size="12" fill="#76515d">cliente → entregas</text>
+<path d="M650 720 H625 V1040 H600" fill="none" stroke="#76515d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="485" y="830" font-family="sans-serif" font-size="12" fill="#76515d">entrega única</text>
+<path d="M600 1200 H650" fill="none" stroke="#76515d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="605" y="1185" font-family="sans-serif" font-size="12" fill="#76515d">1 → N</text>
+<path d="M600 390 H620 V1090 H940 V1120" fill="none" stroke="#76515d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="830" y="1080" font-family="sans-serif" font-size="12" fill="#76515d">producto → líneas</text>
+<rect x="20" y="110" width="580" height="360" rx="8" fill="white" stroke="#76515d"/>
+<rect x="20" y="110" width="580" height="44" rx="8" fill="#76515d"/>
+<text x="36" y="139" font-family="sans-serif" font-size="20" fill="white">PRODUCTS</text>
+<text x="36" y="175" font-family="monospace" font-size="12" fill="#352c30">id</text>
+<text x="310" y="175" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="412" y="175" font-family="monospace" font-size="11" fill="#76515d">PK</text>
+<text x="36" y="203" font-family="monospace" font-size="12" fill="#352c30">sku</text>
+<text x="310" y="203" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="203" font-family="monospace" font-size="11" fill="#76515d">UK</text>
+<text x="36" y="231" font-family="monospace" font-size="12" fill="#352c30">name</text>
+<text x="310" y="231" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="231" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="259" font-family="monospace" font-size="12" fill="#352c30">description</text>
+<text x="310" y="259" font-family="monospace" font-size="12" fill="#352c30">TEXT</text>
+<text x="412" y="259" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="287" font-family="monospace" font-size="12" fill="#352c30">image_url</text>
+<text x="310" y="287" font-family="monospace" font-size="12" fill="#352c30">TEXT</text>
+<text x="412" y="287" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="315" font-family="monospace" font-size="12" fill="#352c30">price_minor</text>
+<text x="310" y="315" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="412" y="315" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="343" font-family="monospace" font-size="12" fill="#352c30">currency</text>
+<text x="310" y="343" font-family="monospace" font-size="12" fill="#352c30">CHAR</text>
+<text x="412" y="343" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="371" font-family="monospace" font-size="12" fill="#352c30">stock_on_hand</text>
+<text x="310" y="371" font-family="monospace" font-size="12" fill="#352c30">INT</text>
+<text x="412" y="371" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="399" font-family="monospace" font-size="12" fill="#352c30">stock_reserved</text>
+<text x="310" y="399" font-family="monospace" font-size="12" fill="#352c30">INT</text>
+<text x="412" y="399" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="427" font-family="monospace" font-size="12" fill="#352c30">created_at</text>
+<text x="310" y="427" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="427" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="455" font-family="monospace" font-size="12" fill="#352c30">updated_at</text>
+<text x="310" y="455" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="455" font-family="monospace" font-size="11" fill="#76515d"></text>
+<rect x="650" y="110" width="580" height="276" rx="8" fill="white" stroke="#76515d"/>
+<rect x="650" y="110" width="580" height="44" rx="8" fill="#76515d"/>
+<text x="666" y="139" font-family="sans-serif" font-size="20" fill="white">CUSTOMERS</text>
+<text x="666" y="175" font-family="monospace" font-size="12" fill="#352c30">id</text>
+<text x="940" y="175" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="1042" y="175" font-family="monospace" font-size="11" fill="#76515d">PK</text>
+<text x="666" y="203" font-family="monospace" font-size="12" fill="#352c30">full_name</text>
+<text x="940" y="203" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="203" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="231" font-family="monospace" font-size="12" fill="#352c30">email</text>
+<text x="940" y="231" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="231" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="259" font-family="monospace" font-size="12" fill="#352c30">phone</text>
+<text x="940" y="259" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="259" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="287" font-family="monospace" font-size="12" fill="#352c30">session_hash</text>
+<text x="940" y="287" font-family="monospace" font-size="12" fill="#352c30">CHAR</text>
+<text x="1042" y="287" font-family="monospace" font-size="11" fill="#76515d">UK</text>
+<text x="666" y="315" font-family="monospace" font-size="12" fill="#352c30">session_expires_at</text>
+<text x="940" y="315" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="1042" y="315" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="343" font-family="monospace" font-size="12" fill="#352c30">created_at</text>
+<text x="940" y="343" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="1042" y="343" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="371" font-family="monospace" font-size="12" fill="#352c30">updated_at</text>
+<text x="940" y="371" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="1042" y="371" font-family="monospace" font-size="11" fill="#76515d"></text>
+<rect x="650" y="550" width="580" height="360" rx="8" fill="white" stroke="#76515d"/>
+<rect x="650" y="550" width="580" height="44" rx="8" fill="#76515d"/>
+<text x="666" y="579" font-family="sans-serif" font-size="20" fill="white">DELIVERIES</text>
+<text x="666" y="615" font-family="monospace" font-size="12" fill="#352c30">id</text>
+<text x="940" y="615" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="1042" y="615" font-family="monospace" font-size="11" fill="#76515d">PK</text>
+<text x="666" y="643" font-family="monospace" font-size="12" fill="#352c30">customer_id</text>
+<text x="940" y="643" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="1042" y="643" font-family="monospace" font-size="11" fill="#76515d">FK</text>
+<text x="666" y="671" font-family="monospace" font-size="12" fill="#352c30">recipient_name</text>
+<text x="940" y="671" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="671" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="699" font-family="monospace" font-size="12" fill="#352c30">recipient_phone</text>
+<text x="940" y="699" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="699" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="727" font-family="monospace" font-size="12" fill="#352c30">address_line</text>
+<text x="940" y="727" font-family="monospace" font-size="12" fill="#352c30">TEXT</text>
+<text x="1042" y="727" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="755" font-family="monospace" font-size="12" fill="#352c30">city</text>
+<text x="940" y="755" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="755" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="783" font-family="monospace" font-size="12" fill="#352c30">region</text>
+<text x="940" y="783" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="783" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="811" font-family="monospace" font-size="12" fill="#352c30">country_code</text>
+<text x="940" y="811" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="811" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="839" font-family="monospace" font-size="12" fill="#352c30">status</text>
+<text x="940" y="839" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="1042" y="839" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="867" font-family="monospace" font-size="12" fill="#352c30">created_at</text>
+<text x="940" y="867" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="1042" y="867" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="895" font-family="monospace" font-size="12" fill="#352c30">updated_at</text>
+<text x="940" y="895" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="1042" y="895" font-family="monospace" font-size="11" fill="#76515d"></text>
+<rect x="20" y="850" width="580" height="724" rx="8" fill="white" stroke="#76515d"/>
+<rect x="20" y="850" width="580" height="44" rx="8" fill="#76515d"/>
+<text x="36" y="879" font-family="sans-serif" font-size="20" fill="white">TRANSACTIONS</text>
+<text x="36" y="915" font-family="monospace" font-size="12" fill="#352c30">id</text>
+<text x="310" y="915" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="412" y="915" font-family="monospace" font-size="11" fill="#76515d">PK</text>
+<text x="36" y="943" font-family="monospace" font-size="12" fill="#352c30">reference</text>
+<text x="310" y="943" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="943" font-family="monospace" font-size="11" fill="#76515d">UK</text>
+<text x="36" y="971" font-family="monospace" font-size="12" fill="#352c30">idempotency_key</text>
+<text x="310" y="971" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="971" font-family="monospace" font-size="11" fill="#76515d">&quot;UNIQUE con customer_id&quot;</text>
+<text x="36" y="999" font-family="monospace" font-size="12" fill="#352c30">request_hash</text>
+<text x="310" y="999" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="999" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1027" font-family="monospace" font-size="12" fill="#352c30">product_id</text>
+<text x="310" y="1027" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="412" y="1027" font-family="monospace" font-size="11" fill="#76515d">FK</text>
+<text x="36" y="1055" font-family="monospace" font-size="12" fill="#352c30">customer_id</text>
+<text x="310" y="1055" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="412" y="1055" font-family="monospace" font-size="11" fill="#76515d">FK</text>
+<text x="36" y="1083" font-family="monospace" font-size="12" fill="#352c30">delivery_id</text>
+<text x="310" y="1083" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="412" y="1083" font-family="monospace" font-size="11" fill="#76515d">FK,UK</text>
+<text x="36" y="1111" font-family="monospace" font-size="12" fill="#352c30">quantity</text>
+<text x="310" y="1111" font-family="monospace" font-size="12" fill="#352c30">INT</text>
+<text x="412" y="1111" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1139" font-family="monospace" font-size="12" fill="#352c30">unit_price_minor</text>
+<text x="310" y="1139" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="412" y="1139" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1167" font-family="monospace" font-size="12" fill="#352c30">product_amount_minor</text>
+<text x="310" y="1167" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="412" y="1167" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1195" font-family="monospace" font-size="12" fill="#352c30">base_fee_minor</text>
+<text x="310" y="1195" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="412" y="1195" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1223" font-family="monospace" font-size="12" fill="#352c30">delivery_fee_minor</text>
+<text x="310" y="1223" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="412" y="1223" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1251" font-family="monospace" font-size="12" fill="#352c30">total_minor</text>
+<text x="310" y="1251" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="412" y="1251" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1279" font-family="monospace" font-size="12" fill="#352c30">currency</text>
+<text x="310" y="1279" font-family="monospace" font-size="12" fill="#352c30">CHAR</text>
+<text x="412" y="1279" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1307" font-family="monospace" font-size="12" fill="#352c30">status</text>
+<text x="310" y="1307" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="1307" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1335" font-family="monospace" font-size="12" fill="#352c30">reservation_status</text>
+<text x="310" y="1335" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="1335" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1363" font-family="monospace" font-size="12" fill="#352c30">payment_started_at</text>
+<text x="310" y="1363" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="1363" font-family="monospace" font-size="11" fill="#76515d">&quot;nullable&quot;</text>
+<text x="36" y="1391" font-family="monospace" font-size="12" fill="#352c30">reservation_expires_at</text>
+<text x="310" y="1391" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="1391" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1419" font-family="monospace" font-size="12" fill="#352c30">created_at</text>
+<text x="310" y="1419" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="1419" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1447" font-family="monospace" font-size="12" fill="#352c30">updated_at</text>
+<text x="310" y="1447" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="1447" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="36" y="1475" font-family="monospace" font-size="12" fill="#352c30">payment_expires_at</text>
+<text x="310" y="1475" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="412" y="1475" font-family="monospace" font-size="11" fill="#76515d">nullable</text>
+<text x="36" y="1503" font-family="monospace" font-size="12" fill="#352c30">provider_payment_id</text>
+<text x="310" y="1503" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="1503" font-family="monospace" font-size="11" fill="#76515d">UK, nullable</text>
+<text x="36" y="1531" font-family="monospace" font-size="12" fill="#352c30">provider_payment_status</text>
+<text x="310" y="1531" font-family="monospace" font-size="12" fill="#352c30">VARCHAR</text>
+<text x="412" y="1531" font-family="monospace" font-size="11" fill="#76515d">nullable</text>
+<text x="36" y="1559" font-family="monospace" font-size="12" fill="#352c30">payment_submitted_at</text><text x="310" y="1559" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text><text x="412" y="1559" font-family="monospace" font-size="11" fill="#76515d">nullable, claim</text>
+<rect x="650" y="1120" width="580" height="220" rx="8" fill="white" stroke="#76515d"/>
+<rect x="650" y="1120" width="580" height="44" rx="8" fill="#76515d"/>
+<text x="666" y="1149" font-family="sans-serif" font-size="20" fill="white">TRANSACTION_ITEMS</text>
+<text x="666" y="1185" font-family="monospace" font-size="12" fill="#352c30">transaction_id</text>
+<text x="940" y="1185" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="1042" y="1185" font-family="monospace" font-size="11" fill="#76515d">PK,FK</text>
+<text x="666" y="1213" font-family="monospace" font-size="12" fill="#352c30">product_id</text>
+<text x="940" y="1213" font-family="monospace" font-size="12" fill="#352c30">UUID</text>
+<text x="1042" y="1213" font-family="monospace" font-size="11" fill="#76515d">PK,FK</text>
+<text x="666" y="1241" font-family="monospace" font-size="12" fill="#352c30">quantity</text>
+<text x="940" y="1241" font-family="monospace" font-size="12" fill="#352c30">INT</text>
+<text x="1042" y="1241" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="1269" font-family="monospace" font-size="12" fill="#352c30">unit_price_minor</text>
+<text x="940" y="1269" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="1042" y="1269" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="1297" font-family="monospace" font-size="12" fill="#352c30">product_amount_minor</text>
+<text x="940" y="1297" font-family="monospace" font-size="12" fill="#352c30">BIGINT</text>
+<text x="1042" y="1297" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="666" y="1325" font-family="monospace" font-size="12" fill="#352c30">created_at</text>
+<text x="940" y="1325" font-family="monospace" font-size="12" fill="#352c30">TIMESTAMPTZ</text>
+<text x="1042" y="1325" font-family="monospace" font-size="11" fill="#76515d"></text>
+<text x="20" y="1595" font-family="sans-serif" font-size="14" fill="#352c30">Cabecera: total = suma de líneas + tarifa base + envío. PK de líneas: (transaction_id, product_id).</text>
+<text x="20" y="1625" font-family="sans-serif" font-size="13" fill="#76515d">product_id / quantity / unit_price_minor en cabecera conservan la primera línea por compatibilidad.</text>
+</svg>

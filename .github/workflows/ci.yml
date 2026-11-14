@@ -1,0 +1,62 @@
+name: CI
+on:
+  pull_request:
+    branches: [development, staging, production]
+  push:
+    branches: [development, staging, production, 'feature/**']
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_DB: blush_atelier_test
+          POSTGRES_USER: ci
+          # Servicio efimero de CI; nunca se reutiliza en un entorno publicado.
+          POSTGRES_PASSWORD: ephemeral-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci -d blush_atelier_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      NODE_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      POSTGRES_DB: blush_atelier_test
+      POSTGRES_USER: ci
+      POSTGRES_PASSWORD: ephemeral-ci-only
+      POSTGRES_SSL: 'false'
+    steps:
+      - name: Validar origen de promocion
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          if [[ "$BASE_BRANCH" == staging && "$HEAD_BRANCH" != development ]]; then
+            echo 'staging solo recibe promociones desde development'; exit 1
+          fi
+          if [[ "$BASE_BRANCH" == production && "$HEAD_BRANCH" != staging ]]; then
+            echo 'production solo recibe promociones desde staging'; exit 1
+          fi
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:cov
+      - run: npm run test:integration
+      - run: npm run build

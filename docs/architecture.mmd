@@ -1,0 +1,11 @@
+flowchart LR
+    HTTP[HTTP y Swagger] --> Controllers[Controladores NestJS]
+    Controllers --> UC[Casos de uso con Result]
+    UC --> Models[Dominio: cliente, entrega, precio y stock]
+    UC --> Ports[Puertos: repositorios, runtime y unidad de trabajo]
+    Adapters[Adaptadores TypeORM y crypto] -. implementan .-> Ports
+    Adapters --> DB[(PostgreSQL)]
+    Wiring[Modulos NestJS: DI por tokens] -. conectan .-> UC
+    Wiring -. conectan .-> Adapters
+    Guard[Guard de sesion] --> Auth[AuthenticateCheckout]
+    Auth --> Ports

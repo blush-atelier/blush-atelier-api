@@ -426,3 +426,17 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# NestJS and local configuration
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+
+# Local PostgreSQL data and dumps
+/pgdata/
+/postgres-data/
+*.dump
+*.backup
